@@ -1,0 +1,12 @@
+echo "Running pre-commit hooks..."
+
+echo "Linting staged files with ESLint..."
+npx lint-staged
+
+echo "Running TypeScript type checks..."
+npm run check-types
+
+echo "Ensuring Valid Builds"
+npm run build
+
+echo "Pre-commit checks completed successfully!"

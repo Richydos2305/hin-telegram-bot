@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES6",                     
-    "module": "CommonJS",                  
-    "strict": true,                        
-    "esModuleInterop": true,               
+    "target": "ES6",
+    "module": "CommonJS",
+    "strict": true,
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,                  
-    "outDir": "./dist",                    
-    "rootDir": "./src"                     
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", ".eslintrc.js"],
   "exclude": ["node_modules"]
 }
