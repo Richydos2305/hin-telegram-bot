@@ -1,32 +1,32 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { User } from '../interfaces/models';
+import { User, SecurityQuestions } from '../interfaces/models';
 
 export interface IUser extends User, Document {}
 
 const UserSchema: Schema = new Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true
-        },
-        email: {
-            type: String,
-            required: true,
-            unique: true,
-            maxlength: 50,
-            trim: true
-        },
-        password: {
-            type: String,
-            required: true,
-            maxlength: 225
-        },
+  {
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true
     },
-    {
-        timestamps: true,
-        collection: 'users'
+    security_q: {
+      type: String,
+      required: true,
+      enum: Object.values(SecurityQuestions),
+      trim: true
+    },
+    security_a: {
+      type: String,
+      required: true,
+      maxlength: 225
     }
+  },
+  {
+    timestamps: true,
+    collection: 'users'
+  }
 );
 
 export const Users = mongoose.model<IUser>('User', UserSchema);
