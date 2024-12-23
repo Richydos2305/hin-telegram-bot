@@ -40,13 +40,13 @@ const QuarterSchema = new Schema({
 
     account_id: {
         type: Schema.Types.ObjectId,
-        ref: 'Account',
+        ref: 'Accounts',
         required: true
     },
 
     user_id: {
         type: Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'Users',
         required: true
     }
 
