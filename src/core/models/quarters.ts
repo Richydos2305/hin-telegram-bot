@@ -1,11 +1,9 @@
 import { Schema, model } from "mongoose";
 
 const QuarterSchema = new Schema({
-    
-    year: { 
+
+    year: {
         type: Number,
-        //i was thinking of using date for this field so this can be automated rather than us putting it in manually.
-        //type: Date,
         min: 2024,
     },
 

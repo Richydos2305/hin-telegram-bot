@@ -1,23 +1,23 @@
 import { Schema, model } from "mongoose";
 
 const AccountSchema = new Schema({
-   user_id:{
-       type: Schema.Types.ObjectId,
-       ref: 'Users',
-       required: true
-   },
-   
-   current_balance: {
-    type: Number,
-    default: 0
-   },
+    user_id: {
+        type: Schema.Types.ObjectId,
+        ref: 'Users',
+        required: true
+    },
 
-   initial_balance: {
-    type: Number,
-    default: 0
-   }
+    current_balance: {
+        type: Number,
+        default: 0
+    },
 
-},{
+    initial_balance: {
+        type: Number,
+        default: 0
+    }
+
+}, {
     timestamps: true,
     collection: 'accounts'
 });
