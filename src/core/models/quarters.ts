@@ -2,14 +2,14 @@ import { Schema, model } from "mongoose";
 
 const QuarterSchema = new Schema({
     
-    currentYear: { 
+    year: { 
         type: Number,
         //i was thinking of using date for this field so this can be automated rather than us putting it in manually.
         //type: Date,
         min: 2024,
     },
 
-    currentQuarter: {
+    quarter: {
         type: Number,
         min: 1,
         max: 4,
@@ -17,19 +17,20 @@ const QuarterSchema = new Schema({
     },
 
     starting_capital: {
-        type: Float64Array,
+        type: Number,
         min: 0
     },
 
     ending_capital: {
-        type: Float64Array,
+        type: Number,
         min: 0
     },
 
     roi: {
-        type: Float64Array,
+        type: Number,
         required: true,
-        min: 0
+        min: -1,
+        max: 1
     },
 
     commission: {
@@ -37,11 +38,17 @@ const QuarterSchema = new Schema({
         default: true
     },
 
-    account: {
+    account_id: {
         type: Schema.Types.ObjectId,
-        ref: 'Account'
-    }
+        ref: 'Account',
+        required: true
+    },
 
+    user_id: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    }
 
 }, {
     timestamps: true,

@@ -1,21 +1,22 @@
 import { Schema, model } from "mongoose";
 
 const AccountSchema = new Schema({
-   user:{
+   user_id:{
        type: Schema.Types.ObjectId,
-       ref: 'User'
+       ref: 'User',
+       required: true
    },
-   //This field holds the profit made every quarter plus initial balance
+   
    current_balance: {
-    type: Float64Array,
+    type: Number,
     default: 0
    },
 
-   //This field holds the total amount the user has invested, profit shoud not be added
    initial_balance: {
-    type: Float64Array,
+    type: Number,
     default: 0
    }
+
 },{
     timestamps: true,
     collection: 'accounts'
