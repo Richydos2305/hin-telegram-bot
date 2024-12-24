@@ -4,6 +4,16 @@ export enum SecurityQuestions {
   NAME_OF_CITY_YOU_WERE_BORN_IN = 'What is the name of the city where you were born?',
   NAME_OF_YOUR_PRIMARY_SCHOOL = 'What is the name of your primary school?'
 }
+export enum TransactionType {
+  DEPOSIT = 'Deposit',
+  WITHDRAWAL = 'Withdrawal'
+}
+
+export enum TransactionStatus {
+  PENDING = 'Pending',
+  APPROVED = 'Approved',
+  DENIED = 'Denied'
+}
 
 export interface User {
   username: string;
