@@ -9,10 +9,6 @@ import { bot } from './core/controllers/bot';
 const app = express();
 const port = settings.port || 5000;
 
-bot.command('start', async (ctx) => {
-  await ctx.reply('Welcome to the bot!');
-});
-
 connectMongoDB();
 
 app.use(express.json());

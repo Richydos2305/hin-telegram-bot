@@ -21,6 +21,10 @@ const pickSecurityQuestion = '<b>Pick a Security Question for your Account.</b>'
 
 bot.use(session({ initial }));
 
+bot.command('start', async (ctx) => {
+  await ctx.reply('Welcome to the HIN bot! Click the menu button to see the list of commands.');
+});
+
 bot.command('register', async (ctx) => {
   await ctx.reply(pickSecurityQuestion, {
     parse_mode: 'HTML',
