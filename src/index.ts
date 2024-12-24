@@ -4,8 +4,8 @@ import { settings } from './core/config/application';
 import routes from './core/routes';
 import errorHandler from './core/middleware/errorhandler';
 import { webhookCallback, Bot } from 'grammy';
+import { bot } from './core/controllers/bot';
 
-export const bot = new Bot(settings.botToken);
 const app = express();
 const port = settings.port || 5000;
 
