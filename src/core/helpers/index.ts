@@ -37,7 +37,8 @@ export interface SessionData {
   loggedIn: boolean;
   securityQuestion: string | null;
   securityAnswer: string | null;
-  userData?: any; // For storing any user data
+  userData?: any;
+  isAdmin: boolean;
 }
 
 export function initial(): SessionData {
@@ -48,7 +49,8 @@ export function initial(): SessionData {
     loggedIn: false,
     securityQuestion: null,
     securityAnswer: null,
-    userData: null
+    userData: null,
+    isAdmin: false
   };
 }
 

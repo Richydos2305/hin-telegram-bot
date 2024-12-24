@@ -3,12 +3,14 @@ import { SecurityQuestions } from '../interfaces/models';
 import { MyContext, initial } from '../helpers/index';
 import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
+import { Admins, IAdmin } from '../models/admins';
 
 let securityQuestion: string;
 let answer;
 let telegramId;
 let username;
 let loggedInUser: IUser;
+let loggedInAdmin: IAdmin;
 
 export const bot = new Bot<MyContext>(settings.botToken);
 
@@ -25,6 +27,18 @@ bot.command('start', async (ctx) => {
   await ctx.reply('Welcome to the HIN bot! Click the menu button to see the list of commands.');
 });
 
+bot.command('admin', async (ctx) => {
+  const admin = await Admins.findOne({ username: ctx.message?.from.first_name });
+  if (admin) {
+    await ctx.reply('Input Password');
+    loggedInAdmin = admin;
+    ctx.session.state = 'adminLoginInProgress';
+  } else {
+    await ctx.reply('User does not exist. Try /register instead.');
+  }
+  await ctx.reply(`Welcome ${ctx.message?.from.first_name}. Your available commands are: `);
+});
+
 bot.command('register', async (ctx) => {
   await ctx.reply(pickSecurityQuestion, {
     parse_mode: 'HTML',
@@ -37,7 +51,7 @@ bot.command('login', async (ctx) => {
   if (user) {
     await ctx.reply(user.security_q);
     loggedInUser = user;
-    ctx.session.state = 'loginInProcess';
+    ctx.session.state = 'loginInProgress';
   } else {
     await ctx.reply('User does not exist. Try /register instead.');
   }
@@ -61,16 +75,25 @@ bot.on('message', async (ctx) => {
     telegramId = ctx.message.from.id;
     username = ctx.message.from.first_name;
     const user = await Users.create({ username, telegram_id: telegramId, security_q: securityQuestion, security_a: answer });
+
     if (user) await ctx.reply(`Your details have been taken... Registration complete!`);
     ctx.session.state = null;
-    console.log(user);
-  } else if (state === 'loginInProcess') {
+  } else if (state === 'loginInProgress') {
     if (ctx.message.text === loggedInUser.security_a) {
       await ctx.reply('Authentication Successful');
       ctx.session.loggedIn = true;
       ctx.session.state = null;
     } else {
       await ctx.reply('Wrong Answer. Try /login for another attempt');
+    }
+  } else if (state === 'adminLoginInProgress') {
+    if (ctx.message.text === loggedInAdmin.password) {
+      await ctx.reply('Admin Authentication Successful');
+      ctx.session.loggedIn = true;
+      ctx.session.isAdmin = true;
+      ctx.session.state = null;
+    } else {
+      await ctx.reply('Invalid Password. Try /login or /admin for another attempt');
     }
   } else {
     await ctx.reply(`No action for that response`);
