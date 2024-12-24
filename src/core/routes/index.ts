@@ -1,8 +1,9 @@
 import express from 'express';
-import userRouter from './users';
+// import { asyncHandler } from '../middleware/asyncHandler';
+// import { signup, login, webhook } from '../controllers';
 
 const router = express.Router();
 
-router.use('/', userRouter);
+// router.post('/webhook', asyncHandler(webhook));
 
 export default router;

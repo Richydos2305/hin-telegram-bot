@@ -7,6 +7,7 @@ export enum SecurityQuestions {
 
 export interface User {
   username: string;
+  telegram_id: string;
   security_q: SecurityQuestions;
   security_a: string;
 }

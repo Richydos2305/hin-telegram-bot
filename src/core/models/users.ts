@@ -11,6 +11,11 @@ const UserSchema: Schema = new Schema(
       unique: true,
       trim: true
     },
+    telegram_id: {
+      type: String,
+      unique: true,
+      trim: true
+    },
     security_q: {
       type: String,
       required: true,

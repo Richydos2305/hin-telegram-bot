@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Users, IUser } from '../models/users';
 import bcrypt from 'bcrypt';
-import { getAccessToken, handleError } from '../helpers';
+import { handleError } from '../helpers';
 
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -47,3 +47,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     return handleError(res, 401, 'Email or Password is invalid');
   }
 };
+
+// export const webhook = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     res.sendStatus(200);
+//   } catch (err) {
+//     console.error(err);
+//     return handleError(res, 500, `${err}`);
+//   }
+// };
