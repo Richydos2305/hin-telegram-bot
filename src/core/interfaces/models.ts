@@ -20,3 +20,8 @@ export interface User {
   security_q: SecurityQuestions;
   security_a: string;
 }
+
+export interface Admin {
+  username: string;
+  password: string;
+}
