@@ -68,7 +68,7 @@ bot.command('deposit', async (ctx) => {
   }
 });
 
-bot.command('withdrawal', async (ctx) => {
+bot.command('withdraw', async (ctx) => {
   if (ctx.session.loggedIn) {
     await ctx.reply('Input amount to withdraw in Naira');
     ctx.session.state = 'withdrawalRequestInProgress';
@@ -94,6 +94,8 @@ bot.on('message', async (ctx) => {
           });
           await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
           ctx.session.state = null;
+        } else {
+          await ctx.reply('Insufficient Balance');
         }
       } else {
         await ctx.reply('Please input a valid amount');
