@@ -86,7 +86,7 @@ bot.on('message', async (ctx) => {
         await ctx.reply('Please input a valid amount');
       }
     } else if (state === 'depositRequestConfirmation') {
-      const receipt = ctx.message.photo ? ctx.message.photo[0] : ctx.message.document;
+      const receipt = ctx.message.photo ? ctx.message.photo[0].file_id : ctx.message.document?.file_id;
       if (receipt) {
         const user = ctx.session.userData;
         const account = await Accounts.findOne({ user_id: user._id });

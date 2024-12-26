@@ -8,7 +8,7 @@ export interface ITransactions extends Document {
   type: TransactionType;
   amount: number;
   status: TransactionStatus;
-  receipt: grammyDocument | PhotoSize;
+  receipt: string;
 }
 
 const TransactionSchema: Schema = new Schema(
@@ -39,7 +39,8 @@ const TransactionSchema: Schema = new Schema(
       maxlength: 225
     },
     receipt: {
-      type: Object
+      type: String,
+      required: false
     }
   },
   {
