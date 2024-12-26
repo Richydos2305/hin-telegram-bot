@@ -110,14 +110,19 @@ bot.on('message', async (ctx) => {
       await ctx.reply('No Response at the moment');
     }
   } else if (state === 'securityQuestion') {
-    const selectedQuestion = ctx.message.text;
-
-    if (selectedQuestion && questions.includes(selectedQuestion)) {
-      securityQuestion = selectedQuestion;
-      await ctx.reply(`So ${ctx.message.text}`);
-      ctx.session.state = 'securityAnswer';
+    const user = await Users.findOne({ telegram_id: ctx.message.from.id });
+    if (user) {
+      await ctx.reply('User already exists. Try /login instead.');
     } else {
-      await ctx.reply('Please select a valid security question by using the /register command.');
+      const selectedQuestion = ctx.message.text;
+
+      if (selectedQuestion && questions.includes(selectedQuestion)) {
+        securityQuestion = selectedQuestion;
+        await ctx.reply(`So ${ctx.message.text}`);
+        ctx.session.state = 'securityAnswer';
+      } else {
+        await ctx.reply('Please select a valid security question by using the /register command.');
+      }
     }
   } else if (state === 'securityAnswer') {
     answer = ctx.message.text as string;
@@ -126,6 +131,7 @@ bot.on('message', async (ctx) => {
     const user = await Users.create({ username, telegram_id: telegramId, security_q: securityQuestion, security_a: answer });
 
     if (user) await ctx.reply(`Your details have been taken... Registration complete!`);
+    await Accounts.create({ user_id: user._id });
     ctx.session.state = null;
   } else if (state === 'loginInProgress') {
     if (ctx.message.text === loggedInUser.security_a) {
