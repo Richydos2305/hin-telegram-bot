@@ -23,6 +23,7 @@ export function getAccessToken(user: { name: string; email: string; id: Types.Ob
   );
   return accessToken;
   return accessToken;
+  return accessToken;
 }
 
 export async function userExists(loggedInUserId: Types.ObjectId): Promise<boolean> {
@@ -40,6 +41,7 @@ export interface SessionData {
   securityAnswer: string | null;
   userData?: any;
   isAdmin: boolean;
+  amount: number;
 }
 
 export function initial(): SessionData {
@@ -51,7 +53,8 @@ export function initial(): SessionData {
     securityQuestion: null,
     securityAnswer: null,
     userData: null,
-    isAdmin: false
+    isAdmin: false,
+    amount: 0
   };
 }
 
