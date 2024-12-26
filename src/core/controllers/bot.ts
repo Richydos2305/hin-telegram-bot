@@ -54,7 +54,6 @@ bot.command('login', async (ctx) => {
     await ctx.reply(user.security_q);
     loggedInUser = user;
     ctx.session.state = 'loginInProgress';
-    ctx.session.state = 'loginInProgress';
   } else {
     await ctx.reply('User does not exist. Try /register instead.');
   }
@@ -69,16 +68,45 @@ bot.command('deposit', async (ctx) => {
   }
 });
 
+bot.command('withdrawal', async (ctx) => {
+  if (ctx.session.loggedIn) {
+    await ctx.reply('Input amount to withdraw in Naira');
+    ctx.session.state = 'withdrawalRequestInProgress';
+  } else {
+    await ctx.reply('User does not exist. Please /login to perform this action');
+  }
+});
+
 bot.on('message', async (ctx) => {
   const { state, loggedIn } = ctx.session;
 
   if (loggedIn) {
+    if (state === 'withdrawalRequestInProgress') {
+      const amount = ctx.message.text;
+      if (amount && !isNaN(Number(amount))) {
+        const account = await Accounts.findOne({ user_id: ctx.session.userData._id });
+        if (account && Number(amount) <= account.current_balance) {
+          await Transactions.create({
+            user_id: ctx.session.userData._id,
+            account_id: account._id,
+            type: TransactionType.WITHDRAWAL,
+            amount: Number(amount)
+          });
+          await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
+          ctx.session.state = null;
+        }
+      } else {
+        await ctx.reply('Please input a valid amount');
+      }
+    }
+
     if (state === 'depositRequestInProgress') {
       const amount = ctx.message.text;
       if (amount && !isNaN(Number(amount))) {
         await ctx.reply(`
           Make the transfer of N${amount} to the following account: 
-          0021919337 - Access Bank - Richard Dosunmu. 
+          0021919337 - Access Bank 
+          Richard Dosunmu. 
           Attach the receipt as your response to this message.`);
         ctx.session.state = 'depositRequestConfirmation';
         ctx.session.amount = Number(amount);
@@ -91,8 +119,6 @@ bot.on('message', async (ctx) => {
         const user = ctx.session.userData;
         const account = await Accounts.findOne({ user_id: user._id });
         if (account) {
-          console.log(user._id, account._id, TransactionType.DEPOSIT, ctx.session.amount, receipt);
-
           const transactionRecord = await Transactions.create({
             user_id: user._id,
             account_id: account._id,
