@@ -54,6 +54,7 @@ bot.command('login', async (ctx) => {
     await ctx.reply(user.security_q);
     loggedInUser = user;
     ctx.session.state = 'loginInProgress';
+    ctx.session.state = 'loginInProgress';
   } else {
     await ctx.reply('User does not exist. Try /register instead.');
   }

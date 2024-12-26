@@ -23,6 +23,7 @@ export function getAccessToken(user: { name: string; email: string; id: Types.Ob
   );
   return accessToken;
   return accessToken;
+  return accessToken;
 }
 
 export async function userExists(loggedInUserId: Types.ObjectId): Promise<boolean> {
