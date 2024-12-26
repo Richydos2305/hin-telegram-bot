@@ -91,6 +91,8 @@ bot.on('message', async (ctx) => {
         const user = ctx.session.userData;
         const account = await Accounts.findOne({ user_id: user._id });
         if (account) {
+          console.log(user._id, account._id, TransactionType.DEPOSIT, ctx.session.amount, receipt);
+
           const transactionRecord = await Transactions.create({
             user_id: user._id,
             account_id: account._id,

@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { TransactionType, TransactionStatus } from '../interfaces/models';
+import { PhotoSize, Document as grammyDocument } from 'grammy/types';
 
 export interface ITransactions extends Document {
   user_id: Schema.Types.ObjectId;
@@ -7,7 +8,7 @@ export interface ITransactions extends Document {
   type: TransactionType;
   amount: number;
   status: TransactionStatus;
-  receipt: object;
+  receipt: grammyDocument | PhotoSize;
 }
 
 const TransactionSchema: Schema = new Schema(
