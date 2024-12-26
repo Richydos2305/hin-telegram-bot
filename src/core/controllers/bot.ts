@@ -96,7 +96,7 @@ bot.on('message', async (ctx) => {
           const transactionRecord = await Transactions.create({
             user_id: user._id,
             account_id: account._id,
-            transaction_type: TransactionType.DEPOSIT,
+            type: TransactionType.DEPOSIT,
             amount: ctx.session.amount,
             receipt
           });
