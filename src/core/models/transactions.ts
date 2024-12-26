@@ -7,6 +7,7 @@ export interface ITransactions extends Document {
   type: TransactionType;
   amount: number;
   status: TransactionStatus;
+  receipt: object;
 }
 
 const TransactionSchema: Schema = new Schema(
@@ -16,9 +17,9 @@ const TransactionSchema: Schema = new Schema(
       ref: 'Users',
       required: true
     },
-    quarter_id: {
+    account_id: {
       type: Schema.Types.ObjectId,
-      ref: 'Quarters',
+      ref: 'Accounts',
       required: true
     },
     type: {
@@ -28,13 +29,16 @@ const TransactionSchema: Schema = new Schema(
     },
     status: {
       type: String,
-      required: true,
-      enum: Object.values(TransactionStatus)
+      enum: Object.values(TransactionStatus),
+      default: TransactionStatus.PENDING
     },
     amount: {
       type: Number,
       required: true,
       maxlength: 225
+    },
+    receipt: {
+      type: Object
     }
   },
   {
