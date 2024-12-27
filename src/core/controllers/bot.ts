@@ -23,6 +23,12 @@ const buttonRows = questions.map((question) => [Keyboard.text(question)]);
 const keyboard = Keyboard.from(buttonRows).resized().oneTime();
 const pickSecurityQuestion = '<b>Pick a Security Question for your Account.</b>';
 
+const transactionConfirmationCommand: string[] = [TransactionStatus.APPROVED, TransactionStatus.DENIED];
+
+const transactionConfirmationbuttonRows = transactionConfirmationCommand.map((command) => [Keyboard.text(command)]);
+const transactionConfirmationkeyboard = Keyboard.from(transactionConfirmationbuttonRows).resized().oneTime();
+const pickTransactionStatus = '<b>Approve or Deny?</b>';
+
 bot.use(session({ initial }));
 
 bot.command('start', async (ctx) => {
@@ -100,11 +106,75 @@ bot.command('withdraw', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
-  const { state, loggedIn, isAdmin } = ctx.session;
+  const { state, loggedIn, isAdmin, transactionRequestInProgress } = ctx.session;
 
   if (loggedIn) {
     if (isAdmin) {
-      if (ctx.session.transactions.length > 0) {
+      if (state === 'transactionRequestReceiptUpload') {
+        let receipt: { file: string; type: FileType } | null = null;
+        if (ctx.message.photo) {
+          receipt = {
+            file: ctx.message.photo[0].file_id,
+            type: FileType.PHOTO
+          };
+        } else if (ctx.message.document) {
+          receipt = {
+            file: ctx.message.document.file_id,
+            type: FileType.DOCUMENT
+          };
+        }
+        if (receipt) {
+          const transaction = await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, {
+            status: TransactionStatus.APPROVED,
+            receipt
+          });
+          console.log(transaction);
+          const account = await Accounts.findOne({ _id: ctx.session.currentTransaction.transaction.account_id });
+
+          if (account) {
+            account.current_balance -= ctx.session.currentTransaction.transaction.amount;
+            account.initial_balance -= ctx.session.currentTransaction.transaction.amount;
+            await account.save();
+          }
+          ctx.session.state = null;
+          ctx.session.currentTransaction = null;
+          ctx.session.transactions = [];
+        } else {
+          await ctx.reply(`Send a Valid Receipt`);
+        }
+      } else if (state === 'transactionRequestInProgress') {
+        const account = await Accounts.findOne({ _id: ctx.session.currentTransaction.transaction.account_id });
+
+        if (
+          ctx.message.text === TransactionStatus.APPROVED &&
+          account &&
+          ctx.session.currentTransaction.transaction.type === TransactionType.DEPOSIT
+        ) {
+          account.current_balance += ctx.session.currentTransaction.transaction.amount;
+          account.initial_balance += ctx.session.currentTransaction.transaction.amount;
+          await account.save();
+          const transaction = await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, { status: ctx.message.text });
+          console.log(transaction);
+          await ctx.reply('Okay. Will let the user know');
+          ctx.session.state = null;
+          ctx.session.currentTransaction = null;
+          ctx.session.transactions = [];
+        } else if (
+          ctx.message.text === TransactionStatus.APPROVED &&
+          account &&
+          ctx.session.currentTransaction.transaction.type === TransactionType.WITHDRAWAL
+        ) {
+          await ctx.reply('Okay. Upload the Receipt as a response to this message and the user will be notified');
+          ctx.session.state = 'transactionRequestReceiptUpload';
+        } else if (
+          ctx.message.text === TransactionStatus.DENIED &&
+          account &&
+          (ctx.session.currentTransaction.transaction.type === TransactionType.WITHDRAWAL ||
+            ctx.session.currentTransaction.transaction.type === TransactionType.DEPOSIT)
+        ) {
+          await ctx.reply('Okay. Will let the user know');
+        }
+      } else if (ctx.session.transactions.length > 0) {
         const username = ctx.message.text;
         const transactions = ctx.session.transactions;
         const userTransaction = transactions.find((obj) => obj.username === username);
@@ -115,6 +185,12 @@ bot.on('message', async (ctx) => {
             await ctx.replyWithPhoto(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
           }
         }
+        await ctx.reply(pickTransactionStatus, {
+          parse_mode: 'HTML',
+          reply_markup: transactionConfirmationkeyboard
+        });
+        ctx.session.currentTransaction = userTransaction;
+        ctx.session.state = 'transactionRequestInProgress';
       }
     } else if (state === 'withdrawalRequestInProgress') {
       const amount = ctx.message.text;

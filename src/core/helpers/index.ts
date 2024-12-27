@@ -43,6 +43,8 @@ export interface SessionData {
   isAdmin: boolean;
   amount: number;
   transactions: any[];
+  transactionRequestInProgress: boolean;
+  currentTransaction: any;
 }
 
 export function initial(): SessionData {
@@ -56,7 +58,9 @@ export function initial(): SessionData {
     userData: null,
     isAdmin: false,
     amount: 0,
-    transactions: []
+    transactions: [],
+    transactionRequestInProgress: false,
+    currentTransaction: null
   };
 }
 
