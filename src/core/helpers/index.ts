@@ -42,6 +42,7 @@ export interface SessionData {
   userData?: any;
   isAdmin: boolean;
   amount: number;
+  transactions: any[];
 }
 
 export function initial(): SessionData {
@@ -54,7 +55,8 @@ export function initial(): SessionData {
     securityAnswer: null,
     userData: null,
     isAdmin: false,
-    amount: 0
+    amount: 0,
+    transactions: []
   };
 }
 

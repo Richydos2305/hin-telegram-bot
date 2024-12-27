@@ -1,5 +1,5 @@
 import { Bot, Keyboard, session } from 'grammy';
-import { SecurityQuestions, TransactionType } from '../interfaces/models';
+import { SecurityQuestions, TransactionStatus, TransactionType } from '../interfaces/models';
 import { MyContext, initial } from '../helpers/index';
 import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
@@ -37,6 +37,27 @@ bot.command('admin', async (ctx) => {
     ctx.session.state = 'adminLoginInProgress';
   } else {
     await ctx.reply('Admin does not exist.');
+  }
+});
+
+bot.command('transactions', async (ctx) => {
+  if (ctx.session.loggedIn && ctx.session.isAdmin) {
+    const result = [];
+    const modifiedTransactions = [];
+    const transactions = await Transactions.find({ status: TransactionStatus.PENDING });
+    console.log(transactions);
+    for (const transaction of transactions) {
+      const username = await Users.findById(transaction.user_id).select('username');
+      console.log(username);
+
+      result.push(`${username} - N${transaction.amount} - ${transaction.type}`);
+      modifiedTransactions.push({ ...username, ...transaction });
+    }
+    await ctx.reply(result.join('\n'));
+    ctx.session.transactions = modifiedTransactions;
+    console.log(modifiedTransactions);
+  } else {
+    await ctx.reply('Not an Admin. You do not have access to this command');
   }
 });
 
@@ -100,9 +121,7 @@ bot.on('message', async (ctx) => {
       } else {
         await ctx.reply('Please input a valid amount');
       }
-    }
-
-    if (state === 'depositRequestInProgress') {
+    } else if (state === 'depositRequestInProgress') {
       const amount = ctx.message.text;
       if (amount && !isNaN(Number(amount))) {
         await ctx.reply(`
