@@ -47,13 +47,14 @@ bot.command('transactions', async (ctx) => {
     const transactions = await Transactions.find({ status: TransactionStatus.PENDING });
     console.log(transactions);
     for (const transaction of transactions) {
-      const username = await Users.findById(transaction.user_id).select('username');
-      console.log(username);
+      const user = await Users.findById(transaction.user_id).select('username');
+      console.log(user);
 
-      result.push(`${username} - N${transaction.amount} - ${transaction.type}`);
-      modifiedTransactions.push({ ...username, ...transaction });
+      result.push(`${user?.username} - N${transaction.amount} - ${transaction.type}`);
+      modifiedTransactions.push({ username: user?.username, transaction });
     }
     await ctx.reply(result.join('\n'));
+    await ctx.reply('Input a username to access their transaction details');
     ctx.session.transactions = modifiedTransactions;
     console.log(modifiedTransactions);
   } else {
@@ -99,9 +100,20 @@ bot.command('withdraw', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
-  const { state, loggedIn } = ctx.session;
+  const { state, loggedIn, isAdmin } = ctx.session;
 
   if (loggedIn) {
+    if (isAdmin) {
+      if (ctx.session.transactions.length > 0) {
+        const username = ctx.message.text;
+        const transactions = ctx.session.transactions;
+        const userTransaction = transactions.find((obj) => obj.username === username);
+        if (userTransaction && userTransaction.transaction.type === TransactionType.DEPOSIT) {
+          await ctx.replyWithDocument(userTransaction.transaction.receipt, { caption: 'Here is the receipt' });
+        }
+      }
+    }
+
     if (state === 'withdrawalRequestInProgress') {
       const amount = ctx.message.text;
       if (amount && !isNaN(Number(amount))) {
