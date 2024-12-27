@@ -38,18 +38,16 @@ const TransactionSchema: Schema = new Schema(
     },
     amount: {
       type: Number,
-      required: true,
-      maxlength: 225
+      required: true
     },
     receipt: {
-      type: {
-        file: String,
-        type: {
-          type: String,
-          enum: Object.values(FileType)
-        }
+      file: {
+        type: String
       },
-      required: false
+      type: {
+        type: String,
+        enum: Object.values(FileType)
+      }
     }
   },
   {
