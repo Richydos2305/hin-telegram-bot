@@ -8,6 +8,10 @@ export enum TransactionType {
   DEPOSIT = 'Deposit',
   WITHDRAWAL = 'Withdrawal'
 }
+export enum FileType {
+  PHOTO = 'Photo',
+  DOCUMENT = 'Document'
+}
 
 export enum TransactionStatus {
   PENDING = 'Pending',

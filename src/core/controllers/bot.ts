@@ -1,5 +1,5 @@
 import { Bot, Keyboard, session } from 'grammy';
-import { SecurityQuestions, TransactionStatus, TransactionType } from '../interfaces/models';
+import { FileType, SecurityQuestions, TransactionStatus, TransactionType } from '../interfaces/models';
 import { MyContext, initial } from '../helpers/index';
 import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
@@ -109,12 +109,14 @@ bot.on('message', async (ctx) => {
         const transactions = ctx.session.transactions;
         const userTransaction = transactions.find((obj) => obj.username === username);
         if (userTransaction && userTransaction.transaction.type === TransactionType.DEPOSIT) {
-          await ctx.replyWithDocument(userTransaction.transaction.receipt, { caption: 'Here is the receipt' });
+          if (userTransaction.transaction.receipt.type === FileType.DOCUMENT) {
+            await ctx.replyWithDocument(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
+          } else if (userTransaction.transaction.receipt.type === FileType.PHOTO) {
+            await ctx.replyWithPhoto(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
+          }
         }
       }
-    }
-
-    if (state === 'withdrawalRequestInProgress') {
+    } else if (state === 'withdrawalRequestInProgress') {
       const amount = ctx.message.text;
       if (amount && !isNaN(Number(amount))) {
         const account = await Accounts.findOne({ user_id: ctx.session.userData._id });
@@ -147,7 +149,21 @@ bot.on('message', async (ctx) => {
         await ctx.reply('Please input a valid amount');
       }
     } else if (state === 'depositRequestConfirmation') {
-      const receipt = ctx.message.photo ? ctx.message.photo[0].file_id : ctx.message.document?.file_id;
+      let receipt: {
+        file: string;
+        type: FileType;
+      } | null = null;
+      if (ctx.message.photo) {
+        receipt = {
+          file: ctx.message.photo[0].file_id,
+          type: FileType.PHOTO
+        };
+      } else if (ctx.message.document) {
+        receipt = {
+          file: ctx.message.document.file_id,
+          type: FileType.DOCUMENT
+        };
+      }
       if (receipt) {
         const user = ctx.session.userData;
         const account = await Accounts.findOne({ user_id: user._id });

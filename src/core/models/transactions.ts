@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { TransactionType, TransactionStatus } from '../interfaces/models';
+import { TransactionType, TransactionStatus, FileType } from '../interfaces/models';
 import { PhotoSize, Document as grammyDocument } from 'grammy/types';
 
 export interface ITransactions extends Document {
@@ -8,7 +8,10 @@ export interface ITransactions extends Document {
   type: TransactionType;
   amount: number;
   status: TransactionStatus;
-  receipt: string;
+  receipt: {
+    file: string;
+    type: FileType;
+  };
 }
 
 const TransactionSchema: Schema = new Schema(
@@ -39,7 +42,13 @@ const TransactionSchema: Schema = new Schema(
       maxlength: 225
     },
     receipt: {
-      type: String,
+      type: {
+        file: String,
+        type: {
+          type: String,
+          enum: Object.values(FileType)
+        }
+      },
       required: false
     }
   },
