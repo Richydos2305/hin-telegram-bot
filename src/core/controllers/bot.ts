@@ -106,7 +106,7 @@ bot.command('withdraw', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
-  const { state, loggedIn, isAdmin, transactionRequestInProgress } = ctx.session;
+  const { state, loggedIn, isAdmin } = ctx.session;
 
   if (loggedIn) {
     if (isAdmin) {
@@ -136,6 +136,7 @@ bot.on('message', async (ctx) => {
             account.initial_balance -= ctx.session.currentTransaction.transaction.amount;
             await account.save();
           }
+          await ctx.reply('Okay. Will let the user know it has been approved');
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
           ctx.session.transactions = [];
@@ -155,7 +156,7 @@ bot.on('message', async (ctx) => {
           await account.save();
           const transaction = await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, { status: ctx.message.text });
           console.log(transaction);
-          await ctx.reply('Okay. Will let the user know');
+          await ctx.reply('Okay. Will let the user know it has been approved');
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
           ctx.session.transactions = [];
@@ -172,7 +173,8 @@ bot.on('message', async (ctx) => {
           (ctx.session.currentTransaction.transaction.type === TransactionType.WITHDRAWAL ||
             ctx.session.currentTransaction.transaction.type === TransactionType.DEPOSIT)
         ) {
-          await ctx.reply('Okay. Will let the user know');
+          const transaction = await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, { status: ctx.message.text });
+          await ctx.reply('Okay. Will let the user know it has been denied');
         }
       } else if (ctx.session.transactions.length > 0) {
         const username = ctx.message.text;
