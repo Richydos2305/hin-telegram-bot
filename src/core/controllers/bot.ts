@@ -56,7 +56,7 @@ bot.command('transactions', async (ctx) => {
     console.log(transactions);
     if (transactions.length > 0) {
       for (const transaction of transactions) {
-        const user = await Users.findById(transaction.user_id).select('username, chat_id');
+        const user = await Users.findById(transaction.user_id).select('username chat_id');
         console.log(user);
 
         result.push(`${user?.username} - N${transaction.amount} - ${transaction.type}`);
