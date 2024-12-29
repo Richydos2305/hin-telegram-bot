@@ -38,6 +38,8 @@ bot.command('start', async (ctx) => {
 bot.command('admin', async (ctx) => {
   const admin = await Admins.findOne({ username: ctx.message?.from.first_name });
   if (admin) {
+    console.log(ctx.message?.chat.id);
+
     await ctx.reply('Input Password');
     loggedInAdmin = admin;
     ctx.session.state = 'adminLoginInProgress';
@@ -52,17 +54,21 @@ bot.command('transactions', async (ctx) => {
     const modifiedTransactions = [];
     const transactions = await Transactions.find({ status: TransactionStatus.PENDING });
     console.log(transactions);
-    for (const transaction of transactions) {
-      const user = await Users.findById(transaction.user_id).select('username');
-      console.log(user);
+    if (transactions.length > 0) {
+      for (const transaction of transactions) {
+        const user = await Users.findById(transaction.user_id).select('username, chat_id');
+        console.log(user);
 
-      result.push(`${user?.username} - N${transaction.amount} - ${transaction.type}`);
-      modifiedTransactions.push({ username: user?.username, transaction });
+        result.push(`${user?.username} - N${transaction.amount} - ${transaction.type}`);
+        modifiedTransactions.push({ user, transaction });
+      }
+      await ctx.reply(result.join('\n'));
+      await ctx.reply('Input a username to access their transaction request');
+      ctx.session.transactions = modifiedTransactions;
+      console.log(modifiedTransactions);
+    } else {
+      await ctx.reply('No Pending Transactions');
     }
-    await ctx.reply(result.join('\n'));
-    await ctx.reply('Input a username to access their transaction details');
-    ctx.session.transactions = modifiedTransactions;
-    console.log(modifiedTransactions);
   } else {
     await ctx.reply('Not an Admin. You do not have access to this command');
   }
@@ -137,6 +143,14 @@ bot.on('message', async (ctx) => {
             await account.save();
           }
           await ctx.reply('Okay. Will let the user know it has been approved');
+          const user = await Users.findById(ctx.session.currentTransaction.transaction.user_id);
+          if (user)
+            await bot.api.sendMessage(
+              user.chat_id,
+              `Your Withdrawal Request of N${ctx.session.currentTransaction.transaction.amount} has been approved. 
+          Thank you for your patronage. 
+          Lucky you, lol.`
+            );
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
           ctx.session.transactions = [];
@@ -145,6 +159,7 @@ bot.on('message', async (ctx) => {
         }
       } else if (state === 'transactionRequestInProgress') {
         const account = await Accounts.findOne({ _id: ctx.session.currentTransaction.transaction.account_id });
+        const user = await Users.findById(ctx.session.currentTransaction.transaction.user_id);
 
         if (
           ctx.message.text === TransactionStatus.APPROVED &&
@@ -154,9 +169,15 @@ bot.on('message', async (ctx) => {
           account.current_balance += ctx.session.currentTransaction.transaction.amount;
           account.initial_balance += ctx.session.currentTransaction.transaction.amount;
           await account.save();
-          const transaction = await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, { status: ctx.message.text });
-          console.log(transaction);
+          await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, { status: ctx.message.text });
           await ctx.reply('Okay. Will let the user know it has been approved');
+          if (user)
+            await bot.api.sendMessage(
+              user.chat_id,
+              `Your Deposit Request of N${ctx.session.currentTransaction.transaction.amount} has been approved. 
+          Thank you for your patronage. 
+          Good luck in the next quarter, lol.`
+            );
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
           ctx.session.transactions = [];
@@ -173,13 +194,19 @@ bot.on('message', async (ctx) => {
           (ctx.session.currentTransaction.transaction.type === TransactionType.WITHDRAWAL ||
             ctx.session.currentTransaction.transaction.type === TransactionType.DEPOSIT)
         ) {
-          const transaction = await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, { status: ctx.message.text });
+          await Transactions.findByIdAndUpdate(ctx.session.currentTransaction.transaction._id, { status: ctx.message.text });
           await ctx.reply('Okay. Will let the user know it has been denied');
+          if (user)
+            await bot.api.sendMessage(
+              user.chat_id,
+              `Your Transaction Request of N${ctx.session.currentTransaction.transaction.amount} has been denied. 
+          You must have given us invalid details.`
+            );
         }
       } else if (ctx.session.transactions.length > 0) {
         const username = ctx.message.text;
         const transactions = ctx.session.transactions;
-        const userTransaction = transactions.find((obj) => obj.username === username);
+        const userTransaction = transactions.find((obj) => obj.user.username === username);
         if (userTransaction && userTransaction.transaction.type === TransactionType.DEPOSIT) {
           if (userTransaction.transaction.receipt.type === FileType.DOCUMENT) {
             await ctx.replyWithDocument(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
@@ -206,6 +233,8 @@ bot.on('message', async (ctx) => {
             amount: Number(amount)
           });
           await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
+          // await bot.api.sendMessage(number, `${user.username} just made a withdrawal request of N${amount}.
+          // Kindly use /transactions to confirm this.`);
           ctx.session.state = null;
         } else {
           await ctx.reply('Insufficient Balance');
@@ -255,6 +284,8 @@ bot.on('message', async (ctx) => {
           });
           if (transactionRecord) {
             await ctx.reply(`Successful Deposit Request. Give 1-2 days to reflect.`);
+            // await bot.api.sendMessage(number, `${user.username} just made a deposit request of N${ctx.session.amount}.
+            // Kindly use /transactions to confirm this.`);
             ctx.session.state = null;
             ctx.session.amount = 0;
           }
@@ -284,7 +315,8 @@ bot.on('message', async (ctx) => {
     answer = ctx.message.text as string;
     telegramId = ctx.message.from.id;
     username = ctx.message.from.first_name;
-    const user = await Users.create({ username, telegram_id: telegramId, security_q: securityQuestion, security_a: answer });
+    const chat_id = ctx.message.chat.id;
+    const user = await Users.create({ username, telegram_id: telegramId, security_q: securityQuestion, security_a: answer, chat_id });
 
     if (user) await ctx.reply(`Your details have been taken... Registration complete!`);
     await Accounts.create({ user_id: user._id });

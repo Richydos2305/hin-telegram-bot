@@ -16,6 +16,10 @@ const UserSchema: Schema = new Schema(
       unique: true,
       trim: true
     },
+    chat_id: {
+      type: String,
+      unique: true
+    },
     security_q: {
       type: String,
       required: true,

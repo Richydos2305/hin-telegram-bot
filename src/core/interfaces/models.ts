@@ -22,6 +22,7 @@ export enum TransactionStatus {
 export interface User {
   username: string;
   telegram_id: string;
+  chat_id: string;
   security_q: SecurityQuestions;
   security_a: string;
 }
@@ -29,4 +30,5 @@ export interface User {
 export interface Admin {
   username: string;
   password: string;
+  chat_id: string;
 }
