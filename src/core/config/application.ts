@@ -8,5 +8,6 @@ export const settings = {
   mongoUriDev: process.env.MONGO_URI_DEVELOPMENT,
   mongoUriProd: process.env.MONGO_URI_PRODUCTION,
   botToken: process.env.TELEGRAMBOTTOKEN as string,
-  webhookUrl: process.env.WEBHOOKURL as string
+  webhookUrl: process.env.WEBHOOKURL as string,
+  adminChatId: process.env.ADMINCHATID as string
 };

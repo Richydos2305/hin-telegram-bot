@@ -98,7 +98,7 @@ bot.command('deposit', async (ctx) => {
     await ctx.reply('Input amount to deposit in Naira');
     ctx.session.state = 'depositRequestInProgress';
   } else {
-    await ctx.reply('User does not exist. Please /login to perform this action');
+    await ctx.reply('You are not logged in. Please /login to perform this action');
   }
 });
 
@@ -233,8 +233,11 @@ bot.on('message', async (ctx) => {
             amount: Number(amount)
           });
           await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
-          // await bot.api.sendMessage(number, `${user.username} just made a withdrawal request of N${amount}.
-          // Kindly use /transactions to confirm this.`);
+          await bot.api.sendMessage(
+            settings.adminChatId,
+            `${ctx.session.userData.username} just made a withdrawal request of N${amount}.
+          Kindly use /transactions to confirm this.`
+          );
           ctx.session.state = null;
         } else {
           await ctx.reply('Insufficient Balance');
@@ -284,8 +287,11 @@ bot.on('message', async (ctx) => {
           });
           if (transactionRecord) {
             await ctx.reply(`Successful Deposit Request. Give 1-2 days to reflect.`);
-            // await bot.api.sendMessage(number, `${user.username} just made a deposit request of N${ctx.session.amount}.
-            // Kindly use /transactions to confirm this.`);
+            await bot.api.sendMessage(
+              settings.adminChatId,
+              `${user.username} just made a deposit request of N${ctx.session.amount}.
+            Kindly use /transactions to confirm this.`
+            );
             ctx.session.state = null;
             ctx.session.amount = 0;
           }
