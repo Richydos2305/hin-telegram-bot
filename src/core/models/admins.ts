@@ -11,6 +11,10 @@ const AdminSchema: Schema = new Schema(
       unique: true,
       trim: true
     },
+    chat_id: {
+      type: String,
+      unique: true
+    },
     password: {
       type: String,
       required: true

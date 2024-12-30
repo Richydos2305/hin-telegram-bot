@@ -40,11 +40,14 @@ export interface SessionData {
   userData?: any;
   isAdmin: boolean;
   amount: number;
+  transactions: any[];
+  transactionRequestInProgress: boolean;
+  currentTransaction: any;
   roi: number;
   total_capital: number;
   year: number;
-  quarter: number
-  commissions: boolean
+  quarter: number;
+  commissions: boolean;
 }
 
 export function initial(): SessionData {
@@ -58,12 +61,14 @@ export function initial(): SessionData {
     userData: null,
     isAdmin: false,
     amount: 0,
+    transactions: [],
+    transactionRequestInProgress: false,
+    currentTransaction: null,
     roi: 0,
     total_capital: 0,
     year: 0,
     quarter: 0,
     commissions: true
-
   };
 }
 
