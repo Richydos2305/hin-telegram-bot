@@ -5,6 +5,7 @@ const QuarterSchema = new Schema({
     year: {
         type: Number,
         min: 2024,
+        required: true
     },
 
     quarter: {
@@ -16,12 +17,14 @@ const QuarterSchema = new Schema({
 
     starting_capital: {
         type: Number,
-        min: 0
+        min: 0,
+        default: 0
     },
 
     ending_capital: {
         type: Number,
-        min: 0
+        min: 0,
+        default: 0
     },
 
     roi: {
