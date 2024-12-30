@@ -22,8 +22,6 @@ export function getAccessToken(user: { name: string; email: string; id: Types.Ob
     { expiresIn: '4h' }
   );
   return accessToken;
-  return accessToken;
-  return accessToken;
 }
 
 export async function userExists(loggedInUserId: Types.ObjectId): Promise<boolean> {
@@ -45,6 +43,11 @@ export interface SessionData {
   transactions: any[];
   transactionRequestInProgress: boolean;
   currentTransaction: any;
+  roi: number;
+  total_capital: number;
+  year: number;
+  quarter: number;
+  commissions: boolean;
 }
 
 export function initial(): SessionData {
@@ -60,7 +63,12 @@ export function initial(): SessionData {
     amount: 0,
     transactions: [],
     transactionRequestInProgress: false,
-    currentTransaction: null
+    currentTransaction: null,
+    roi: 0,
+    total_capital: 0,
+    year: 0,
+    quarter: 0,
+    commissions: true
   };
 }
 
