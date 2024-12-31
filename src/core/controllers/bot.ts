@@ -1,6 +1,6 @@
 import { Bot, Keyboard, session } from 'grammy';
 import { FileType, SecurityQuestions, TransactionStatus, TransactionType } from '../interfaces/models';
-import { MyContext, initial } from '../helpers/index';
+import { MyContext, initial, ROICalcForClient, ROICalcForAdmin } from '../helpers/index';
 import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
 import { Admins, IAdmin } from '../models/admins';
@@ -117,55 +117,53 @@ bot.command('withdraw', async (ctx) => {
 
 bot.on('message', async (ctx) => {
   const { state, loggedIn, isAdmin } = ctx.session;
-
-  //THIS IS THE FUNCTION FOR THE CALCULATION SO THIS IS WHAT YOU WILL MAINLY BE CHANGING
   const addEntries = async (): Promise<void> => {
     try {
-      let starting_capital;
-      let ending_capital;
-      let netProfit;
-      let userProfit;
-      let userCommissions;
-      let users_roi;
+      let startingCapital: number;
+      let endingCapital: number = 0;
+      let roi = ctx.session.roi;
+      let result: number | { finalAmount: number; managementFee: number; newROI: number };
+
       const users = await Users.find();
       for (const user of users) {
         const account = await Accounts.findOne({ user_id: user._id });
         if (account) {
-          starting_capital = account.current_balance;
-          if (!ctx.session.commissions) {
-            userProfit = Number(starting_capital) * Number(ctx.session.roi);
-          } else {
-            userProfit = Number(starting_capital) * Number(ctx.session.roi - 0.25);
+          startingCapital = account.current_balance;
+          if (ctx.session.commissions === false) {
+            result = ROICalcForAdmin(roi, startingCapital);
+            endingCapital = result;
+          } else if (ctx.session.commissions === true) {
+            result = ROICalcForClient(roi, startingCapital);
+            roi = result.newROI;
+            endingCapital = result.finalAmount;
           }
-          if (ctx.session.commissions) {
-            userCommissions = Number(userProfit) * (25 / 100);
-            netProfit = Number(userProfit) - Number(userCommissions);
-            ending_capital = Number(starting_capital) + Number(netProfit);
-          } else {
-            netProfit = Number(userProfit);
-            ending_capital = Number(starting_capital) + Number(netProfit);
-          }
-          users_roi = netProfit / starting_capital;
           const quarterRecord = await Quarters.create({
             user_id: user._id,
             account_id: account._id,
             year: ctx.session.year,
             quarter: ctx.session.quarter,
-            roi: users_roi,
+            roi: roi / 100,
             commission: ctx.session.commissions,
-            starting_capital,
-            ending_capital
+            starting_capital: startingCapital,
+            ending_capital: endingCapital
           });
-          const userQuarter = await Quarters.find({ user_id: user._id });
-          let accountROI = 0;
-          for (let i = 0; i < userQuarter.length; i++) {
-            accountROI += userQuarter[i].roi;
-          }
-          accountROI = accountROI / userQuarter.length;
-          await Accounts.updateOne({ user_id: user._id }, { current_balance: ending_capital, roi: users_roi });
 
           if (quarterRecord) {
+            account.current_balance = quarterRecord.ending_capital;
+            account.roi = (account.current_balance - account.initial_balance) / account.initial_balance;
+            await account.save();
+
             await ctx.reply(`Successful Entry for ${user.username}`);
+            await bot.api.sendMessage(
+              user.chat_id,
+              `Quarterly Performance Update for Q${ctx.session.quarter}
+
+              A whole 3 months has passed by and we are done for the quarter.
+              Kindly log in and check the latest results.
+
+              Once again, thank you for your patronage.
+              `
+            );
           }
         }
       }
@@ -177,18 +175,11 @@ bot.on('message', async (ctx) => {
 
   if (isAdmin) {
     if (state === 'makeentryInProgress') {
-      ctx.session.total_capital = Number(ctx.message.text);
-      if (ctx.session.total_capital > 0) {
-        ctx.session.state = 'askYear';
-        const currentYear = new Date().getFullYear();
-        ctx.session.year = currentYear;
-        ctx.session.state = 'askQuarter';
-        await ctx.reply(`Year automatically set to ${currentYear}. Type next to continue`);
-        return;
-      } else {
-        await ctx.reply('Please input a valid amount');
-        return;
-      }
+      const currentYear = new Date().getFullYear();
+      ctx.session.year = currentYear;
+      await ctx.reply(`Year automatically set to ${currentYear}. Type anything to continue`);
+      ctx.session.state = 'askQuarter';
+      return;
     }
 
     if (state === 'askQuarter') {
@@ -200,31 +191,31 @@ bot.on('message', async (ctx) => {
       } else {
         ctx.session.quarter = 1;
       }
-      await ctx.reply(`Quarter automatically set to ${ctx.session.quarter}.`);
-      ctx.session.state = 'askROI';
+      await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
       await ctx.reply(`Input quarters ROI`);
+      ctx.session.state = 'askROI';
       return;
     }
 
     if (state === 'askROI') {
       ctx.session.roi = Number(ctx.message.text);
-      if (ctx.session.roi >= -1 && ctx.session.roi <= 1) {
-        ctx.session.state = 'askCommissions';
+      if (ctx.session.roi >= -100) {
         await ctx.reply(`Add Commissions? Respond with yes or no`);
+        ctx.session.state = 'askCommissions';
         return;
       } else {
-        await ctx.reply('Please input a valid ROI amount, between -1 and 1');
+        await ctx.reply('Please input a valid ROI amount, between -100% and 200%');
         return;
       }
     }
 
     if (state === 'askCommissions') {
-      if ((ctx.message.text && ctx.message.text.toLowerCase() === 'yes') || ctx.message.text?.toLowerCase() === 'y') {
+      if (ctx.message.text && (ctx.message.text.toLowerCase() === 'yes' || ctx.message.text.toLowerCase() === 'y')) {
         ctx.session.commissions = true;
         await addEntries();
         ctx.session.state = null;
         return;
-      } else if ((ctx.message.text && ctx.message.text.toLowerCase() === 'no') || ctx.message.text?.toLowerCase() === 'n') {
+      } else if (ctx.message.text && (ctx.message.text.toLowerCase() === 'no' || ctx.message.text.toLowerCase() === 'n')) {
         ctx.session.commissions = false;
         await addEntries();
         ctx.session.state = null;
@@ -502,18 +493,17 @@ bot.on('callback_query', async (ctx) => {
   const callbackData = ctx.callbackQuery.data;
   if (callbackData === 'command1') {
     if (ctx.session.isAdmin) {
-      await ctx.reply('Input total trading capital at the start of this quarter.');
       ctx.session.state = 'makeentryInProgress';
     } else {
-      await ctx.reply('User does not exist. Please /login to perform this action');
+      await ctx.reply('Admin does not exist.');
     }
   } else if (callbackData === 'usercommand1') {
     if (ctx.session.loggedIn) {
       const quarter = await Quarters.find({ user_id: ctx.session.userData._id });
-      if (quarter) {
+      if (quarter.length > 0) {
         for (let i = 0; i < quarter.length; i++) {
           await ctx.reply(
-            `  <b>Investment Summary for ${quarter[i].quarter}</b>
+            `  <b>Investment Summary for Q${quarter[i].quarter} ${quarter[i].year}</b>
   
     💰 Starting Balance: <code>${quarter[i].starting_capital}</code>
     📈 Ending Balance: <code>${quarter[i].ending_capital}</code>
@@ -555,19 +545,13 @@ bot.on('callback_query', async (ctx) => {
   } else if (callbackData === 'usercommand3') {
     if (ctx.session.loggedIn) {
       const account = await Accounts.findOne({ user_id: ctx.session.userData._id });
-      const quarter = await Quarters.find({ user_id: ctx.session.userData._id });
-      let accountROI = 0;
-      for (let i = 0; i < quarter.length; i++) {
-        accountROI += quarter[i].roi;
-      }
-      accountROI = accountROI / quarter.length;
       if (account) {
         await ctx.reply(
           `<b>Investment Summary</b>
 
   \ud83d\udcb0 Initial Investment: <code>${account.initial_balance}</code>
   📈 Current Balance: <code>${account.current_balance}</code>
-  📊 Return on Investment (ROI): <code>${accountROI * 100}%</code>
+  📊 Return on Investment (ROI): <code>${account.roi * 100}%</code>
   <i>\ud83d\udc4d Your investment has grown by ${account.current_balance - account.initial_balance}!</i>`,
           {
             parse_mode: 'HTML'
