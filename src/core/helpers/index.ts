@@ -73,3 +73,24 @@ export function initial(): SessionData {
 }
 
 export type MyContext = Context & SessionFlavor<SessionData>;
+
+function getRandomInt(min: number, max: number): number {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function ROICalcForClient(percentageGrowth: number, initialAmount: number): { finalAmount: number; managementFee: number; newROI: number } {
+  const overallProfit = (percentageGrowth / 100) * initialAmount;
+  const randomInt = getRandomInt(25, 30);
+  const managementFee = (randomInt / 100) * overallProfit;
+  const newProfit = overallProfit - managementFee;
+  const newROI = (newProfit / initialAmount) * 100;
+  const finalAmount: number = newProfit + initialAmount;
+  return { finalAmount, managementFee, newROI };
+}
+
+export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number): number {
+  const finalAmount: number = (percentageGrowth / 100) * initialAmount + initialAmount;
+  return finalAmount;
+}

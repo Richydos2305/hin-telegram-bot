@@ -1,6 +1,6 @@
 import { Bot, Keyboard, session } from 'grammy';
 import { FileType, SecurityQuestions, TransactionStatus, TransactionType } from '../interfaces/models';
-import { MyContext, initial } from '../helpers/index';
+import { MyContext, initial, ROICalcForClient, ROICalcForAdmin } from '../helpers/index';
 import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
 import { Admins, IAdmin } from '../models/admins';
@@ -41,7 +41,7 @@ bot.command('admin', async (ctx) => {
   if (admin) {
     console.log(ctx.message?.chat.id);
 
-    await ctx.reply('**Enter Password 🔒**\n\nPlease type your password to proceed...',{ parse_mode: 'Markdown'});
+    await ctx.reply('**Enter Password 🔒**\n\nPlease type your password to proceed...', { parse_mode: 'Markdown' });
     loggedInAdmin = admin;
     ctx.session.state = 'adminLoginInProgress';
   } else {
@@ -88,55 +88,53 @@ bot.command('withdraw', async (ctx) => {
 
 bot.on('message', async (ctx) => {
   const { state, loggedIn, isAdmin } = ctx.session;
-
-  //THIS IS THE FUNCTION FOR THE CALCULATION SO THIS IS WHAT YOU WILL MAINLY BE CHANGING
   const addEntries = async (): Promise<void> => {
     try {
-      let starting_capital;
-      let ending_capital;
-      let netProfit;
-      let userProfit;
-      let userCommissions;
-      let users_roi;
+      let startingCapital: number;
+      let endingCapital: number = 0;
+      let roi = ctx.session.roi;
+      let result: number | { finalAmount: number; managementFee: number; newROI: number };
+
       const users = await Users.find();
       for (const user of users) {
         const account = await Accounts.findOne({ user_id: user._id });
         if (account) {
-          starting_capital = account.current_balance;
-          if (!ctx.session.commissions) {
-            userProfit = Number(starting_capital) * Number(ctx.session.roi);
-          } else {
-            userProfit = Number(starting_capital) * Number(ctx.session.roi - 0.25);
+          startingCapital = account.current_balance;
+          if (ctx.session.commissions === false) {
+            result = ROICalcForAdmin(roi, startingCapital);
+            endingCapital = result;
+          } else if (ctx.session.commissions === true) {
+            result = ROICalcForClient(roi, startingCapital);
+            roi = result.newROI;
+            endingCapital = result.finalAmount;
           }
-          if (ctx.session.commissions) {
-            userCommissions = Number(userProfit) * (25 / 100);
-            netProfit = Number(userProfit) - Number(userCommissions);
-            ending_capital = Number(starting_capital) + Number(netProfit);
-          } else {
-            netProfit = Number(userProfit);
-            ending_capital = Number(starting_capital) + Number(netProfit);
-          }
-          users_roi = netProfit / starting_capital;
           const quarterRecord = await Quarters.create({
             user_id: user._id,
             account_id: account._id,
             year: ctx.session.year,
             quarter: ctx.session.quarter,
-            roi: users_roi,
+            roi: roi / 100,
             commission: ctx.session.commissions,
-            starting_capital,
-            ending_capital
+            starting_capital: startingCapital,
+            ending_capital: endingCapital
           });
-          const userQuarter = await Quarters.find({ user_id: user._id });
-          let accountROI = 0;
-          for (let i = 0; i < userQuarter.length; i++) {
-            accountROI += userQuarter[i].roi;
-          }
-          accountROI = accountROI / userQuarter.length;
-          await Accounts.updateOne({ user_id: user._id }, { current_balance: ending_capital, roi: users_roi });
 
           if (quarterRecord) {
+            account.current_balance = quarterRecord.ending_capital;
+            account.roi = (account.current_balance - account.initial_balance) / account.initial_balance;
+            await account.save();
+
             await ctx.reply(`Successful Entry for ${user.username}`);
+            await bot.api.sendMessage(
+              user.chat_id,
+              `Quarterly Performance Update for Q${ctx.session.quarter}
+
+              A whole 3 months has passed by and we are done for the quarter.
+              Kindly log in and check the latest results.
+
+              Once again, thank you for your patronage.
+              `
+            );
           }
         }
       }
@@ -148,18 +146,11 @@ bot.on('message', async (ctx) => {
 
   if (isAdmin) {
     if (state === 'makeentryInProgress') {
-      ctx.session.total_capital = Number(ctx.message.text);
-      if (ctx.session.total_capital > 0) {
-        ctx.session.state = 'askYear';
-        const currentYear = new Date().getFullYear();
-        ctx.session.year = currentYear;
-        ctx.session.state = 'askQuarter';
-        await ctx.reply(`Year automatically set to ${currentYear}. Type next to continue`);
-        return;
-      } else {
-        await ctx.reply('Please input a valid amount');
-        return;
-      }
+      const currentYear = new Date().getFullYear();
+      ctx.session.year = currentYear;
+      await ctx.reply(`Year automatically set to ${currentYear}. Type anything to continue`);
+      ctx.session.state = 'askQuarter';
+      return;
     }
 
     if (state === 'askQuarter') {
@@ -171,31 +162,31 @@ bot.on('message', async (ctx) => {
       } else {
         ctx.session.quarter = 1;
       }
-      await ctx.reply(`Quarter automatically set to ${ctx.session.quarter}.`);
-      ctx.session.state = 'askROI';
+      await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
       await ctx.reply(`Input quarters ROI`);
+      ctx.session.state = 'askROI';
       return;
     }
 
     if (state === 'askROI') {
       ctx.session.roi = Number(ctx.message.text);
-      if (ctx.session.roi >= -1 && ctx.session.roi <= 1) {
-        ctx.session.state = 'askCommissions';
+      if (ctx.session.roi >= -100) {
         await ctx.reply(`Add Commissions? Respond with yes or no`);
+        ctx.session.state = 'askCommissions';
         return;
       } else {
-        await ctx.reply('Please input a valid ROI amount, between -1 and 1');
+        await ctx.reply('Please input a valid ROI amount, between -100% and 200%');
         return;
       }
     }
 
     if (state === 'askCommissions') {
-      if ((ctx.message.text && ctx.message.text.toLowerCase() === 'yes') || ctx.message.text?.toLowerCase() === 'y') {
+      if (ctx.message.text && (ctx.message.text.toLowerCase() === 'yes' || ctx.message.text.toLowerCase() === 'y')) {
         ctx.session.commissions = true;
         await addEntries();
         ctx.session.state = null;
         return;
-      } else if ((ctx.message.text && ctx.message.text.toLowerCase() === 'no') || ctx.message.text?.toLowerCase() === 'n') {
+      } else if (ctx.message.text && (ctx.message.text.toLowerCase() === 'no' || ctx.message.text.toLowerCase() === 'n')) {
         ctx.session.commissions = false;
         await addEntries();
         ctx.session.state = null;
@@ -240,6 +231,7 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
+              // eslint-disable-next-line max-len
               `**Withdrawal Approved!** 🎉\n\nYour Withdrawal Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved.\n\nThank you for your patronage! We appreciate your business. 😊`
             );
           ctx.session.state = null;
@@ -265,6 +257,7 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
+              // eslint-disable-next-line max-len
               `**Deposit Approved!** 📈\n\nYour Deposit Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved. Thank you for choosing us! We wish you continued success. 🙏`
             );
           ctx.session.state = null;
@@ -288,6 +281,7 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
+              // eslint-disable-next-line max-len
               `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ₦${ctx.session.currentTransaction.transaction.amount} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
             );
         }
@@ -336,7 +330,9 @@ bot.on('message', async (ctx) => {
     } else if (state === 'depositRequestInProgress') {
       const amount = ctx.message.text;
       if (amount && !isNaN(Number(amount))) {
-        await ctx.reply(`**Confirm Deposit** 💸\n\nPlease make a transfer of ₦${amount} to the following account: \n\n0021919337 - Access Bank \nRichard Dosunmu.\n\nAttach the receipt as your response to this message. 📝`);
+        await ctx.reply(`**Confirm Deposit** 
+          💸\n\nPlease make a transfer of ₦${amount} to the following account: \n\n0021919337 - Access Bank 
+          \nRichard Dosunmu.\n\nAttach the receipt as your response to this message. 📝`);
         ctx.session.state = 'depositRequestConfirmation';
         ctx.session.amount = Number(amount);
       } else {
@@ -370,7 +366,9 @@ bot.on('message', async (ctx) => {
             receipt
           });
           if (transactionRecord) {
-            await ctx.reply(`**Deposit Request!** 📈\n\nYour deposit request has been successfully processed. Please allow 1-2 business days for the funds to reflect in your account. 🕒`);
+            await ctx.reply(`**Deposit Request!** 
+              📈\n\nYour deposit request has been successfully processed. 
+              Please allow 1-2 business days for the funds to reflect in your account. 🕒`);
             await bot.api.sendMessage(
               settings.adminChatId,
               `${user.username} just made a deposit request of N${ctx.session.amount}.
@@ -408,7 +406,10 @@ bot.on('message', async (ctx) => {
     const chat_id = ctx.message.chat.id;
     const user = await Users.create({ username, telegram_id: telegramId, security_q: securityQuestion, security_a: answer, chat_id });
 
-    if (user) await ctx.reply(`**Registration Successful! 🎉**\n\nYour details have been successfully registered. You can now use the /login command to access your account.`);
+    if (user)
+      await ctx.reply(
+        `**Registration Successful! 🎉**\n\nYour details have been successfully registered. You can now use the /login command to access your account.`
+      );
     await Accounts.create({ user_id: user._id });
     ctx.session.state = null;
   } else if (state === 'loginInProgress') {
@@ -479,7 +480,7 @@ bot.on('callback_query', async (ctx) => {
         for (const transaction of transactions) {
           const user = await Users.findById(transaction.user_id).select('username chat_id');
           console.log(user);
-  
+
           result.push(`${user?.username} - ₦${transaction.amount} - ${transaction.type}`);
           modifiedTransactions.push({ user, transaction });
         }
@@ -493,9 +494,7 @@ bot.on('callback_query', async (ctx) => {
     } else {
       await ctx.reply('Not an Admin. 🚫 You do not have access to this command');
     }
-  }
-  
-  else if (callbackData === 'check_performance') {
+  } else if (callbackData === 'check_performance') {
     if (ctx.session.loggedIn) {
       const quarter = await Quarters.find({ user_id: ctx.session.userData._id });
       if (quarter) {
