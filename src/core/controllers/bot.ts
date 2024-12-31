@@ -7,7 +7,6 @@ import { Admins, IAdmin } from '../models/admins';
 import { Accounts } from '../models/accounts';
 import { Transactions } from '../models/transactions';
 import { Quarters } from '../models/quarters';
-import { connectMongoDB } from '../database';
 
 let securityQuestion: string;
 let answer;
@@ -15,8 +14,6 @@ let telegramId;
 let username;
 let loggedInUser: IUser;
 let loggedInAdmin: IAdmin;
-
-connectMongoDB();
 
 export const bot = new Bot<MyContext>(settings.botToken);
 
@@ -35,7 +32,6 @@ const pickTransactionStatus = '<b>Approve or Deny?</b>';
 
 bot.use(session({ initial }));
 
-
 bot.command('start', async (ctx) => {
   await ctx.reply('**Welcome to HIN Bot!** 🤖\n\nClick the menu button to explore our features and commands 📚');
 });
@@ -52,32 +48,6 @@ bot.command('admin', async (ctx) => {
     await ctx.reply('**Admin Not Found** 🚫\n\nPlease check your credentials and try again.');
   }
 });
-
-/*bot.command('transactions', async (ctx) => {
-  if (ctx.session.loggedIn && ctx.session.isAdmin) {
-    const result = [];
-    const modifiedTransactions = [];
-    const transactions = await Transactions.find({ status: TransactionStatus.PENDING });
-    console.log(transactions);
-    if (transactions.length > 0) {
-      for (const transaction of transactions) {
-        const user = await Users.findById(transaction.user_id).select('username chat_id');
-        console.log(user);
-
-        result.push(`${user?.username} - N${transaction.amount} - ${transaction.type}`);
-        modifiedTransactions.push({ user, transaction });
-      }
-      await ctx.reply(result.join('\n'));
-      await ctx.reply('Input a username to access their transaction request');
-      ctx.session.transactions = modifiedTransactions;
-      console.log(modifiedTransactions);
-    } else {
-      await ctx.reply('No Pending Transactions');
-    }
-  } else {
-    await ctx.reply('Not an Admin. You do not have access to this command');
-  }
-});*/
 
 bot.command('register', async (ctx) => {
   await ctx.reply(pickSecurityQuestion, {
@@ -510,7 +480,7 @@ bot.on('callback_query', async (ctx) => {
           const user = await Users.findById(transaction.user_id).select('username chat_id');
           console.log(user);
   
-          result.push(`${user?.username} - N${transaction.amount} - ${transaction.type}`);
+          result.push(`${user?.username} - ₦${transaction.amount} - ${transaction.type}`);
           modifiedTransactions.push({ user, transaction });
         }
         await ctx.reply(result.join('\n'));
@@ -533,8 +503,8 @@ bot.on('callback_query', async (ctx) => {
           await ctx.reply(
             `  <b>Investment Summary for ${quarter[i].quarter} in ${quarter[i].year}</b>
   
-    💰 Starting Balance: <code>${quarter[i].starting_capital}</code>
-    📈 Ending Balance: <code>${quarter[i].ending_capital}</code>
+    💰 Starting Balance: <code>₦${quarter[i].starting_capital}</code>
+    📈 Ending Balance: <code>₦${quarter[i].ending_capital}</code>
     📊 Return on Investment (ROI): <code>${quarter[i].roi * 100}%</code>
   
     👍 Your investment has grown by ${quarter[i].ending_capital - quarter[i].starting_capital}!
@@ -556,11 +526,11 @@ bot.on('callback_query', async (ctx) => {
           `
     📊 Investment Update for quarter ${quarter.quarter} 📊
   
-    💰 Starting Balance: <code>${quarter.starting_capital}</code>
-    📈 Ending Balance: <code>${quarter.ending_capital}</code>
+    💰 Starting Balance: <code>₦${quarter.starting_capital}</code>
+    📈 Ending Balance: <code>₦${quarter.ending_capital}</code>
     📊 Return on Investment (ROI): <code>${quarter.roi * 100}%</code>
   
-    🎉 Congratulations! Your investment has grown by ${quarter.ending_capital - quarter.starting_capital}!
+    🎉 Congratulations! Your investment has grown by ₦${quarter.ending_capital - quarter.starting_capital}!
   `,
           {
             parse_mode: 'HTML'
@@ -583,10 +553,10 @@ bot.on('callback_query', async (ctx) => {
         await ctx.reply(
           `<b>Investment Summary</b>
 
-  \ud83d\udcb0 Initial Investment: <code>${account.initial_balance}</code>
-  📈 Current Balance: <code>${account.current_balance}</code>
+  \ud83d\udcb0 Initial Investment: <code>₦${account.initial_balance}</code>
+  📈 Current Balance: <code>₦${account.current_balance}</code>
   📊 Return on Investment (ROI): <code>${accountROI * 100}%</code>
-  <i>\ud83d\udc4d Your investment has grown by ${account.current_balance - account.initial_balance}!</i>`,
+  <i>\ud83d\udc4d Your investment has grown by ₦${account.current_balance - account.initial_balance}!</i>`,
           {
             parse_mode: 'HTML'
           }
