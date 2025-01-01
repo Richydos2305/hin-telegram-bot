@@ -5,7 +5,7 @@ import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
 import { Admins, IAdmin } from '../models/admins';
 import { Accounts } from '../models/accounts';
-import { Transactions } from '../models/transactions';
+import { ITransactions, Transactions } from '../models/transactions';
 import { Quarters } from '../models/quarters';
 
 let securityQuestion: string;
@@ -92,12 +92,12 @@ bot.on('message', async (ctx) => {
     try {
       let startingCapital: number;
       let endingCapital: number = 0;
-      let roi = ctx.session.roi;
       let result: number | { finalAmount: number; managementFee: number; newROI: number };
 
       const users = await Users.find();
       for (const user of users) {
         const account = await Accounts.findOne({ user_id: user._id });
+        let roi = ctx.session.roi;
         if (account) {
           startingCapital = account.current_balance;
           if (ctx.session.commissions === false) {
@@ -145,14 +145,6 @@ bot.on('message', async (ctx) => {
   };
 
   if (isAdmin) {
-    if (state === 'makeentryInProgress') {
-      const currentYear = new Date().getFullYear();
-      ctx.session.year = currentYear;
-      await ctx.reply(`Year automatically set to ${currentYear}. Type anything to continue`);
-      ctx.session.state = 'askQuarter';
-      return;
-    }
-
     if (state === 'askQuarter') {
       const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
       if (lastQuarterEntry && lastQuarterEntry.quarter < 4) {
@@ -465,7 +457,10 @@ bot.on('callback_query', async (ctx) => {
   const callbackData = ctx.callbackQuery.data;
   if (callbackData === 'make_entry') {
     if (ctx.session.isAdmin) {
-      ctx.session.state = 'makeentryInProgress';
+      const currentYear = new Date().getFullYear();
+      ctx.session.year = currentYear;
+      await ctx.reply(`Year automatically set to ${currentYear}. Type anything to continue`);
+      ctx.session.state = 'askQuarter';
     } else {
       await ctx.reply('User does not exist. 🚫 Please /login to perform this action');
     }
@@ -542,18 +537,39 @@ bot.on('callback_query', async (ctx) => {
     if (ctx.session.loggedIn) {
       const account = await Accounts.findOne({ user_id: ctx.session.userData._id });
       const quarter = await Quarters.find({ user_id: ctx.session.userData._id });
+      const withdrawals: ITransactions[] = await Transactions.find({
+        user_id: ctx.session.userData._id,
+        type: TransactionType.WITHDRAWAL,
+        status: TransactionStatus.APPROVED
+      });
       let accountROI = 0;
       for (let i = 0; i < quarter.length; i++) {
         accountROI += quarter[i].roi;
       }
       accountROI = accountROI / quarter.length;
       if (account) {
+        if (withdrawals.length > 0) {
+          let totalWithdrawals: number = 0;
+          for (const transaction of withdrawals) {
+            totalWithdrawals += transaction.amount;
+          }
+          await ctx.reply(
+            `<b>Investment Summary</b>
+  
+    \ud83d\udcb0 Initial Investment: <code>₦${account.initial_balance}</code>
+    📈 Current Balance: <code>₦${account.current_balance}</code>
+    📊 You have withdrawn a total of: <code>${totalWithdrawals}%</code>
+    <i>\ud83d\udc4d Your investment has grown by ₦${account.current_balance - account.initial_balance}!</i>`,
+            {
+              parse_mode: 'HTML'
+            }
+          );
+        }
         await ctx.reply(
           `<b>Investment Summary</b>
 
   \ud83d\udcb0 Initial Investment: <code>₦${account.initial_balance}</code>
   📈 Current Balance: <code>₦${account.current_balance}</code>
-  📊 Return on Investment (ROI): <code>${accountROI * 100}%</code>
   <i>\ud83d\udc4d Your investment has grown by ₦${account.current_balance - account.initial_balance}!</i>`,
           {
             parse_mode: 'HTML'
