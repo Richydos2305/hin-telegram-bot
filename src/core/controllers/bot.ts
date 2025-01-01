@@ -465,7 +465,6 @@ bot.on('callback_query', async (ctx) => {
   const callbackData = ctx.callbackQuery.data;
   if (callbackData === 'make_entry') {
     if (ctx.session.isAdmin) {
-      await ctx.reply('Input total trading capital at the start of this quarter.');
       ctx.session.state = 'makeentryInProgress';
     } else {
       await ctx.reply('User does not exist. 🚫 Please /login to perform this action');

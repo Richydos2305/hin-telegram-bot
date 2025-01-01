@@ -87,6 +87,8 @@ export function ROICalcForClient(percentageGrowth: number, initialAmount: number
   const newProfit = overallProfit - managementFee;
   const newROI = (newProfit / initialAmount) * 100;
   const finalAmount: number = newProfit + initialAmount;
+  console.log(randomInt, newProfit, newROI, managementFee);
+
   return { finalAmount, managementFee, newROI };
 }
 
