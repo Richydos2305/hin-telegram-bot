@@ -145,21 +145,6 @@ bot.on('message', async (ctx) => {
   };
 
   if (isAdmin) {
-    if (state === 'askQuarter') {
-      const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
-      if (lastQuarterEntry && lastQuarterEntry.quarter < 4) {
-        ctx.session.quarter = lastQuarterEntry.quarter + 1;
-      } else if (lastQuarterEntry && lastQuarterEntry.quarter === 4) {
-        ctx.session.quarter = 1;
-      } else {
-        ctx.session.quarter = 1;
-      }
-      await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
-      await ctx.reply(`Input quarters ROI`);
-      ctx.session.state = 'askROI';
-      return;
-    }
-
     if (state === 'askROI') {
       ctx.session.roi = Number(ctx.message.text);
       if (ctx.session.roi >= -100) {
@@ -459,8 +444,19 @@ bot.on('callback_query', async (ctx) => {
     if (ctx.session.isAdmin) {
       const currentYear = new Date().getFullYear();
       ctx.session.year = currentYear;
-      await ctx.reply(`Year automatically set to ${currentYear}. Type anything to continue`);
-      ctx.session.state = 'askQuarter';
+      await ctx.reply(`Year automatically set to ${currentYear}.`);
+
+      const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
+      if (lastQuarterEntry && lastQuarterEntry.quarter < 4) {
+        ctx.session.quarter = lastQuarterEntry.quarter + 1;
+      } else if (lastQuarterEntry && lastQuarterEntry.quarter === 4) {
+        ctx.session.quarter = 1;
+      } else {
+        ctx.session.quarter = 1;
+      }
+      await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
+      await ctx.reply(`Input quarters ROI`);
+      ctx.session.state = 'askROI';
     } else {
       await ctx.reply('User does not exist. 🚫 Please /login to perform this action');
     }
