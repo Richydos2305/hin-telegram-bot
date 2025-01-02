@@ -509,7 +509,6 @@ bot.on('callback_query', async (ctx) => {
       }
     } else {
       await ctx.reply('Not an Admin. 🚫 You do not have access to this command');
-      await ctx.reply('Not an Admin. 🚫 You do not have access to this command');
     }
   } else if (callbackData === 'check_performance') {
     if (ctx.session.loggedIn) {
