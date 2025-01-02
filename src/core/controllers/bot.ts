@@ -490,8 +490,8 @@ bot.on('callback_query', async (ctx) => {
           await ctx.reply(
             `  <b>Investment Summary for Q${quarter[i].quarter} in ${quarter[i].year}</b>
   
-    💰 Starting Balance: <code>₦${formatNumber(quarter[i].starting_capital)}</code>
-    📈 Ending Balance: <code>₦${formatNumber(quarter[i].ending_capital)}</code>
+    💰 Starting Balance: <code>${formatNumber(quarter[i].starting_capital)}</code>
+    📈 Ending Balance: <code>${formatNumber(quarter[i].ending_capital)}</code>
     📊 Return on Investment (ROI): <code>${quarter[i].roi * 100}%</code>
   
     👍 Your investment has grown by ${formatNumber(quarter[i].ending_capital - quarter[i].starting_capital)}!
@@ -511,13 +511,13 @@ bot.on('callback_query', async (ctx) => {
       if (quarter) {
         await ctx.reply(
           `
-    📊 <b>Investment Update for quarter ${quarter.quarter}<b> 📊
+    📊 <b>Investment Update for quarter ${quarter.quarter}</b> 📊
   
-    💰 Starting Balance: <code>₦${formatNumber(quarter.starting_capital)}</code>
-    📈 Ending Balance: <code>₦${formatNumber(quarter.ending_capital)}</code>
+    💰 Starting Balance: <code>${formatNumber(quarter.starting_capital)}</code>
+    📈 Ending Balance: <code>${formatNumber(quarter.ending_capital)}</code>
     📊 Return on Investment (ROI): <code>${quarter.roi * 100}%</code>
   
-    🎉 Congratulations! Your investment has grown by ₦${formatNumber(quarter.ending_capital - quarter.starting_capital)}!
+    🎉 Congratulations! Your investment has grown by ${formatNumber(quarter.ending_capital - quarter.starting_capital)}!
   `,
           {
             parse_mode: 'HTML'
@@ -550,10 +550,10 @@ bot.on('callback_query', async (ctx) => {
           await ctx.reply(
             `<b>Investment Summary</b>
   
-    \ud83d\udcb0 Initial Investment: <code>₦${formatNumber(account.initial_balance)}</code>
-    📈 Current Balance: <code>₦${formatNumber(account.current_balance)}</code>
-    📊 You have withdrawn a total of: <code>₦${formatNumber(totalWithdrawals)}</code>
-    <i>\ud83d\udc4d Your investment has grown by ₦${formatNumber(account.current_balance - account.initial_balance)}!</i>`,
+    \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
+    📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
+    📊 You have withdrawn a total of: <code>${formatNumber(totalWithdrawals)}</code>
+    <i>\ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!</i>`,
             {
               parse_mode: 'HTML'
             }
