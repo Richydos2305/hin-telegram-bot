@@ -5,7 +5,7 @@ import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
 import { Admins, IAdmin } from '../models/admins';
 import { Accounts } from '../models/accounts';
-import { Transactions } from '../models/transactions';
+import { ITransactions, Transactions } from '../models/transactions';
 import { Quarters } from '../models/quarters';
 
 let securityQuestion: string;
@@ -33,19 +33,27 @@ const pickTransactionStatus = '<b>Approve or Deny?</b>';
 bot.use(session({ initial }));
 
 bot.command('start', async (ctx) => {
-  await ctx.reply('**Welcome to HIN Bot!** 🤖\n\nClick the menu button to explore our features and commands 📚');
+  await ctx.reply(
+    `<b>Welcome to HIN Bot!</b> 🤖
+    
+Click the menu button to explore our features and commands 📚`,
+    { parse_mode: 'HTML' }
+  );
 });
 
 bot.command('admin', async (ctx) => {
   const admin = await Admins.findOne({ username: ctx.message?.from.first_name });
   if (admin) {
-    console.log(ctx.message?.chat.id);
-
-    await ctx.reply('**Enter Password 🔒**\n\nPlease type your password to proceed...', { parse_mode: 'Markdown' });
+    await ctx.reply(
+      `<b>Enter Password</b> 🔒
+      
+Please type your password to proceed...`,
+      { parse_mode: 'HTML' }
+    );
     loggedInAdmin = admin;
     ctx.session.state = 'adminLoginInProgress';
   } else {
-    await ctx.reply('**Admin Not Found** 🚫\n\nPlease check your credentials and try again.');
+    await ctx.reply(`<b>Admin Not Found</b>🚫\n\nPlease check your credentials and try again.`, { parse_mode: 'HTML' });
   }
 });
 
@@ -65,6 +73,7 @@ bot.command('login', async (ctx) => {
     ctx.session.state = 'loginInProgress';
   } else {
     await ctx.reply('User does not exist.🚫\n\n Try /register instead.');
+    await ctx.reply('User does not exist.🚫\n\n Try /register instead.');
   }
 });
 
@@ -73,15 +82,20 @@ bot.command('deposit', async (ctx) => {
     await ctx.reply('Input amount to deposit in Naira');
     ctx.session.state = 'depositRequestInProgress';
   } else {
-    await ctx.reply('**Login Required** 🔒\n\nUse /login to access this feature.');
+    await ctx.reply(`<b>Login Required</b>🔒\n\nUse /login to access this feature.`, {
+      parse_mode: 'HTML'
+    });
   }
 });
 
 bot.command('withdraw', async (ctx) => {
   if (ctx.session.loggedIn) {
-    await ctx.reply('**Withdrawal Amount** 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)');
+    await ctx.reply(`<b>Withdrawal Amount</b>💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)`, {
+      parse_mode: 'HTML'
+    });
     ctx.session.state = 'withdrawalRequestInProgress';
   } else {
+    await ctx.reply('User does not exist.🚫\n\n Please /login to perform this action');
     await ctx.reply('User does not exist.🚫\n\n Please /login to perform this action');
   }
 });
@@ -92,12 +106,12 @@ bot.on('message', async (ctx) => {
     try {
       let startingCapital: number;
       let endingCapital: number = 0;
-      let roi = ctx.session.roi;
       let result: number | { finalAmount: number; managementFee: number; newROI: number };
 
       const users = await Users.find();
       for (const user of users) {
         const account = await Accounts.findOne({ user_id: user._id });
+        let roi = ctx.session.roi;
         if (account) {
           startingCapital = account.current_balance;
           if (ctx.session.commissions === false) {
@@ -145,29 +159,6 @@ bot.on('message', async (ctx) => {
   };
 
   if (isAdmin) {
-    if (state === 'makeentryInProgress') {
-      const currentYear = new Date().getFullYear();
-      ctx.session.year = currentYear;
-      await ctx.reply(`Year automatically set to ${currentYear}. Type anything to continue`);
-      ctx.session.state = 'askQuarter';
-      return;
-    }
-
-    if (state === 'askQuarter') {
-      const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
-      if (lastQuarterEntry && lastQuarterEntry.quarter < 4) {
-        ctx.session.quarter = lastQuarterEntry.quarter + 1;
-      } else if (lastQuarterEntry && lastQuarterEntry.quarter === 4) {
-        ctx.session.quarter = 1;
-      } else {
-        ctx.session.quarter = 1;
-      }
-      await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
-      await ctx.reply(`Input quarters ROI`);
-      ctx.session.state = 'askROI';
-      return;
-    }
-
     if (state === 'askROI') {
       ctx.session.roi = Number(ctx.message.text);
       if (ctx.session.roi >= -100) {
@@ -231,14 +222,16 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
-              // eslint-disable-next-line max-len
-              `**Withdrawal Approved!** 🎉\n\nYour Withdrawal Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved.\n\nThank you for your patronage! We appreciate your business. 😊`
+              `<b>Withdrawal Approved!</b>🎉
+              
+Your Withdrawal Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved.\n\nThank you for your patronage! We appreciate your business. 😊`,
+              { parse_mode: 'HTML' }
             );
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
           ctx.session.transactions = [];
         } else {
-          await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.'`);
+          await ctx.reply(`<b>Invalid Receipt</b>🚫\n\nPlease send a valid receipt to proceed.`, { parse_mode: 'HTML' });
         }
       } else if (state === 'transactionRequestInProgress') {
         const account = await Accounts.findOne({ _id: ctx.session.currentTransaction.transaction.account_id });
@@ -257,8 +250,10 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
-              // eslint-disable-next-line max-len
-              `**Deposit Approved!** 📈\n\nYour Deposit Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved. Thank you for choosing us! We wish you continued success. 🙏`
+              `<b>Deposit Approved!</b>📈
+              
+Your Deposit Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved. Thank you for choosing us! We wish you continued success. 🙏`,
+              { parse_mode: 'HTML' }
             );
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
@@ -281,8 +276,11 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
-              // eslint-disable-next-line max-len
-              `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ₦${ctx.session.currentTransaction.transaction.amount} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
+              `<b>Transaction Denied!</b>🚫
+              
+Unfortunately, your transaction request of ₦${ctx.session.currentTransaction.transaction.amount} has been denied.
+Please review and correct the details you provided, as they may be invalid. 📝`,
+              { parse_mode: 'HTML' }
             );
         }
       } else if (ctx.session.transactions.length > 0) {
@@ -322,21 +320,28 @@ bot.on('message', async (ctx) => {
           );
           ctx.session.state = null;
         } else {
-          await ctx.reply(`**Insufficient Funds** 🚫\n\nYou don't have enough balance to complete this transaction.`);
+          await ctx.reply(`<b>Insufficient Funds</b>🚫\n\nYou don't have enough balance to complete this transaction.`, { parse_mode: 'HTML' });
         }
       } else {
-        await ctx.reply('**Invalid Amount** 📝\n\nPlease enter a valid amount to proceed.');
+        await ctx.reply(`<b>Invalid Amount</b>📝\n\nPlease enter a valid amount to proceed.`, { parse_mode: 'HTML' });
       }
     } else if (state === 'depositRequestInProgress') {
       const amount = ctx.message.text;
       if (amount && !isNaN(Number(amount))) {
-        await ctx.reply(`**Confirm Deposit** 
-          💸\n\nPlease make a transfer of ₦${amount} to the following account: \n\n0021919337 - Access Bank 
-          \nRichard Dosunmu.\n\nAttach the receipt as your response to this message. 📝`);
+        await ctx.reply(
+          `<b>Confirm Deposit</b>💸
+
+Please make a transfer of ₦${amount} to the following account: 
+Account Number: 0021919337
+Bank: Access Bank 
+Account Name: Richard Dosunmu.
+Attach the receipt as your response to this message. 📝`,
+          { parse_mode: 'HTML' }
+        );
         ctx.session.state = 'depositRequestConfirmation';
         ctx.session.amount = Number(amount);
       } else {
-        await ctx.reply('**Invalid Amount** 📝\n\nPlease enter a valid amount to proceed.');
+        await ctx.reply(`<b>Invalid Amount</b>📝\n\nPlease enter a valid amount to proceed.`, { parse_mode: 'HTML' });
       }
     } else if (state === 'depositRequestConfirmation') {
       let receipt: {
@@ -366,9 +371,12 @@ bot.on('message', async (ctx) => {
             receipt
           });
           if (transactionRecord) {
-            await ctx.reply(`**Deposit Request!** 
-              📈\n\nYour deposit request has been successfully processed. 
-              Please allow 1-2 business days for the funds to reflect in your account. 🕒`);
+            await ctx.reply(
+              `<b>Deposit Request!</b>📈
+
+Your deposit request has been successfully processed. Please allow 1-2 business days for the funds to reflect in your account. 🕒`,
+              { parse_mode: 'HTML' }
+            );
             await bot.api.sendMessage(
               settings.adminChatId,
               `${user.username} just made a deposit request of N${ctx.session.amount}.
@@ -379,7 +387,7 @@ bot.on('message', async (ctx) => {
           }
         }
       } else {
-        await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.`);
+        await ctx.reply(`<b>Invalid Receipt</b>🚫\n\nPlease send a valid receipt to proceed.`, { parse_mode: 'HTML' });
       }
     } else {
       await ctx.reply('No Response at the moment');
@@ -387,7 +395,9 @@ bot.on('message', async (ctx) => {
   } else if (state === 'securityQuestion') {
     const user = await Users.findOne({ telegram_id: ctx.message.from.id });
     if (user) {
-      await ctx.reply('**User Already Exists** 🚫\n\nYou already have an account. Please use the /login command to access it.');
+      await ctx.reply(`<b>User Already Exists</b>🚫\n\nYou already have an account. Please use the /login command to access it.`, {
+        parse_mode: 'HTML'
+      });
     } else {
       const selectedQuestion = ctx.message.text;
 
@@ -396,7 +406,9 @@ bot.on('message', async (ctx) => {
         await ctx.reply(`So ${ctx.message.text}`);
         ctx.session.state = 'securityAnswer';
       } else {
-        await ctx.reply('**Invalid Security Question** 📝\n\nPlease select a valid security question using the /register command.');
+        await ctx.reply(`<b>Invalid Security Question</b>📝\n\nPlease select a valid security question using the /register command.`, {
+          parse_mode: 'HTML'
+        });
       }
     }
   } else if (state === 'securityAnswer') {
@@ -408,7 +420,9 @@ bot.on('message', async (ctx) => {
 
     if (user)
       await ctx.reply(
-        `**Registration Successful! 🎉**\n\nYour details have been successfully registered. You can now use the /login command to access your account.`
+        `<b>Registration Successful!</b> 🎉
+Your details have been successfully registered. You can now use the /login command to access your account.`,
+        { parse_mode: 'HTML' }
       );
     await Accounts.create({ user_id: user._id });
     ctx.session.state = null;
@@ -417,14 +431,9 @@ bot.on('message', async (ctx) => {
       await ctx.reply('Authentication Successful', {
         reply_markup: {
           inline_keyboard: [
-            [
-              { text: 'Check Performance', callback_data: 'check_performance' },
-              { text: 'Check Recent Quarter', callback_data: 'recent_quarter' }
-            ],
-            [
-              { text: 'Investment Status', callback_data: 'investment_status' },
-              { text: 'Command 4', callback_data: 'command4' }
-            ]
+            [{ text: 'Check Performance', callback_data: 'check_performance' }],
+            [{ text: 'Check Recent Quarter', callback_data: 'recent_quarter' }],
+            [{ text: 'Investment Status', callback_data: 'investment_status' }]
           ]
         }
       });
@@ -432,7 +441,7 @@ bot.on('message', async (ctx) => {
       ctx.session.loggedIn = true;
       ctx.session.state = null;
     } else {
-      await ctx.reply(`**Incorrect Answer** 🚫\n\nSorry, that's not correct. Please try again using the /login command.`);
+      await ctx.reply(`<b>Incorrect Answer</b>🚫\n\nSorry, that's not correct. Please try again using the /login command.`, { parse_mode: 'HTML' });
     }
   } else if (state === 'adminLoginInProgress') {
     if (ctx.message.text === loggedInAdmin.password) {
@@ -442,10 +451,6 @@ bot.on('message', async (ctx) => {
             [
               { text: 'Make Entry', callback_data: 'make_entry' },
               { text: 'View Transactions', callback_data: 'view_transactions' }
-            ],
-            [
-              { text: 'Command 3', callback_data: 'command3' },
-              { text: 'Command 4', callback_data: 'command4' }
             ]
           ]
         }
@@ -465,8 +470,21 @@ bot.on('callback_query', async (ctx) => {
   const callbackData = ctx.callbackQuery.data;
   if (callbackData === 'make_entry') {
     if (ctx.session.isAdmin) {
-      await ctx.reply('Input total trading capital at the start of this quarter.');
-      ctx.session.state = 'makeentryInProgress';
+      const currentYear = new Date().getFullYear();
+      ctx.session.year = currentYear;
+      await ctx.reply(`Year automatically set to ${currentYear}.`);
+
+      const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
+      if (lastQuarterEntry && lastQuarterEntry.quarter < 4) {
+        ctx.session.quarter = lastQuarterEntry.quarter + 1;
+      } else if (lastQuarterEntry && lastQuarterEntry.quarter === 4) {
+        ctx.session.quarter = 1;
+      } else {
+        ctx.session.quarter = 1;
+      }
+      await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
+      await ctx.reply(`Input quarters ROI`);
+      ctx.session.state = 'askROI';
     } else {
       await ctx.reply('User does not exist. 🚫 Please /login to perform this action');
     }
@@ -480,7 +498,6 @@ bot.on('callback_query', async (ctx) => {
         for (const transaction of transactions) {
           const user = await Users.findById(transaction.user_id).select('username chat_id');
           console.log(user);
-
           result.push(`${user?.username} - ₦${transaction.amount} - ${transaction.type}`);
           modifiedTransactions.push({ user, transaction });
         }
@@ -506,7 +523,7 @@ bot.on('callback_query', async (ctx) => {
     📈 Ending Balance: <code>₦${quarter[i].ending_capital}</code>
     📊 Return on Investment (ROI): <code>${quarter[i].roi * 100}%</code>
   
-    👍 Your investment has grown by ${quarter[i].ending_capital - quarter[i].starting_capital}!
+    👍 Your investment has grown by ₦${quarter[i].ending_capital - quarter[i].starting_capital}!
   `,
             {
               parse_mode: 'HTML'
@@ -523,7 +540,7 @@ bot.on('callback_query', async (ctx) => {
       if (quarter) {
         await ctx.reply(
           `
-    📊 Investment Update for quarter ${quarter.quarter} 📊
+    📊 <b>Investment Update for quarter ${quarter.quarter}</b> 📊
   
     💰 Starting Balance: <code>₦${quarter.starting_capital}</code>
     📈 Ending Balance: <code>₦${quarter.ending_capital}</code>
@@ -543,23 +560,35 @@ bot.on('callback_query', async (ctx) => {
     if (ctx.session.loggedIn) {
       const account = await Accounts.findOne({ user_id: ctx.session.userData._id });
       const quarter = await Quarters.find({ user_id: ctx.session.userData._id });
+      const withdrawals: ITransactions[] = await Transactions.find({
+        user_id: ctx.session.userData._id,
+        type: TransactionType.WITHDRAWAL,
+        status: TransactionStatus.APPROVED
+      });
       let accountROI = 0;
       for (let i = 0; i < quarter.length; i++) {
         accountROI += quarter[i].roi;
       }
       accountROI = accountROI / quarter.length;
       if (account) {
-        await ctx.reply(
-          `<b>Investment Summary</b>
-
-  \ud83d\udcb0 Initial Investment: <code>₦${account.initial_balance}</code>
+        if (withdrawals.length > 0) {
+          let totalWithdrawals: number = 0;
+          for (const transaction of withdrawals) {
+            totalWithdrawals += transaction.amount;
+          }
+          await ctx.reply(
+            `<b>Investment Summary</b>
+  
+  💰 Initial Investment: <code>₦${account.initial_balance}</code>
   📈 Current Balance: <code>₦${account.current_balance}</code>
   📊 Return on Investment (ROI): <code>${accountROI * 100}%</code>
-  <i>\ud83d\udc4d Your investment has grown by ₦${account.current_balance - account.initial_balance}!</i>`,
-          {
-            parse_mode: 'HTML'
-          }
-        );
+
+  🎉 Your investment has grown by ₦${account.current_balance - account.initial_balance}!`,
+            {
+              parse_mode: 'HTML'
+            }
+          );
+        }
       }
     } else {
       await ctx.reply('User does not exist. 🚫 Please /login to perform this action');
