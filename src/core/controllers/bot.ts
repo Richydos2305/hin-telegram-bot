@@ -1,6 +1,6 @@
 import { Bot, Keyboard, session } from 'grammy';
 import { FileType, SecurityQuestions, TransactionStatus, TransactionType } from '../interfaces/models';
-import { MyContext, initial, ROICalcForClient, ROICalcForAdmin } from '../helpers/index';
+import { MyContext, initial, ROICalcForClient, ROICalcForAdmin, formatNumber } from '../helpers/index';
 import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
 import { Admins, IAdmin } from '../models/admins';
@@ -73,13 +73,12 @@ bot.command('login', async (ctx) => {
     ctx.session.state = 'loginInProgress';
   } else {
     await ctx.reply('User does not exist.🚫\n\n Try /register instead.');
-    await ctx.reply('User does not exist.🚫\n\n Try /register instead.');
   }
 });
 
 bot.command('deposit', async (ctx) => {
   if (ctx.session.loggedIn) {
-    await ctx.reply('Input amount to deposit in Naira');
+    await ctx.reply('Input amount to deposit in ₦ (Naira)');
     ctx.session.state = 'depositRequestInProgress';
   } else {
     await ctx.reply(`<b>Login Required</b>🔒\n\nUse /login to access this feature.`, {
@@ -95,7 +94,6 @@ bot.command('withdraw', async (ctx) => {
     });
     ctx.session.state = 'withdrawalRequestInProgress';
   } else {
-    await ctx.reply('User does not exist.🚫\n\n Please /login to perform this action');
     await ctx.reply('User does not exist.🚫\n\n Please /login to perform this action');
   }
 });
@@ -129,8 +127,8 @@ bot.on('message', async (ctx) => {
             quarter: ctx.session.quarter,
             roi: roi / 100,
             commission: ctx.session.commissions,
-            starting_capital: startingCapital,
-            ending_capital: endingCapital
+            starting_capital: parseFloat(startingCapital.toFixed(2)),
+            ending_capital: parseFloat(endingCapital.toFixed(2))
           });
 
           if (quarterRecord) {
@@ -143,10 +141,10 @@ bot.on('message', async (ctx) => {
               user.chat_id,
               `Quarterly Performance Update for Q${ctx.session.quarter}
 
-              A whole 3 months has passed by and we are done for the quarter.
-              Kindly log in and check the latest results.
+A whole 3 months has passed by and we are done for the quarter.
+Kindly log in and check the latest results.
 
-              Once again, thank you for your patronage.
+Once again, thank you for your patronage.
               `
             );
           }
@@ -315,7 +313,7 @@ Please review and correct the details you provided, as they may be invalid. 📝
           await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
           await bot.api.sendMessage(
             settings.adminChatId,
-            `${ctx.session.userData.username} just made a withdrawal request of N${amount}.
+            `${ctx.session.userData.username} just made a withdrawal request of N${formatNumber(Number(amount))}.
           Kindly use /transactions to confirm this.`
           );
           ctx.session.state = null;
@@ -331,7 +329,7 @@ Please review and correct the details you provided, as they may be invalid. 📝
         await ctx.reply(
           `<b>Confirm Deposit</b>💸
 
-Please make a transfer of ₦${amount} to the following account: 
+Please make a transfer of ${formatNumber(Number(amount))} to the following account: 
 Account Number: 0021919337
 Bank: Access Bank 
 Account Name: Richard Dosunmu.
@@ -379,7 +377,7 @@ Your deposit request has been successfully processed. Please allow 1-2 business 
             );
             await bot.api.sendMessage(
               settings.adminChatId,
-              `${user.username} just made a deposit request of N${ctx.session.amount}.
+              `${user.username} just made a deposit request of N${formatNumber(ctx.session.amount)}.
             Kindly use /transactions to confirm this.`
             );
             ctx.session.state = null;
@@ -498,7 +496,8 @@ bot.on('callback_query', async (ctx) => {
         for (const transaction of transactions) {
           const user = await Users.findById(transaction.user_id).select('username chat_id');
           console.log(user);
-          result.push(`${user?.username} - ₦${transaction.amount} - ${transaction.type}`);
+
+          result.push(`${user?.username} - ${formatNumber(transaction.amount)} - ${transaction.type}`);
           modifiedTransactions.push({ user, transaction });
         }
         await ctx.reply(result.join('\n'));
@@ -510,20 +509,22 @@ bot.on('callback_query', async (ctx) => {
       }
     } else {
       await ctx.reply('Not an Admin. 🚫 You do not have access to this command');
+      await ctx.reply('Not an Admin. 🚫 You do not have access to this command');
     }
   } else if (callbackData === 'check_performance') {
     if (ctx.session.loggedIn) {
+      await ctx.reply('Performance Summary');
       const quarter = await Quarters.find({ user_id: ctx.session.userData._id });
       if (quarter) {
         for (let i = 0; i < quarter.length; i++) {
           await ctx.reply(
-            `  <b>Investment Summary for ${quarter[i].quarter} in ${quarter[i].year}</b>
+            `  <b>Investment Summary for Q${quarter[i].quarter} in ${quarter[i].year}</b>
   
-    💰 Starting Balance: <code>₦${quarter[i].starting_capital}</code>
-    📈 Ending Balance: <code>₦${quarter[i].ending_capital}</code>
+    💰 Starting Balance: <code>${formatNumber(quarter[i].starting_capital)}</code>
+    📈 Ending Balance: <code>${formatNumber(quarter[i].ending_capital)}</code>
     📊 Return on Investment (ROI): <code>${quarter[i].roi * 100}%</code>
   
-    👍 Your investment has grown by ₦${quarter[i].ending_capital - quarter[i].starting_capital}!
+    👍 Your investment has grown by ${formatNumber(quarter[i].ending_capital - quarter[i].starting_capital)}!
   `,
             {
               parse_mode: 'HTML'
@@ -542,11 +543,11 @@ bot.on('callback_query', async (ctx) => {
           `
     📊 <b>Investment Update for quarter ${quarter.quarter}</b> 📊
   
-    💰 Starting Balance: <code>₦${quarter.starting_capital}</code>
-    📈 Ending Balance: <code>₦${quarter.ending_capital}</code>
+    💰 Starting Balance: <code>${formatNumber(quarter.starting_capital)}</code>
+    📈 Ending Balance: <code>${formatNumber(quarter.ending_capital)}</code>
     📊 Return on Investment (ROI): <code>${quarter.roi * 100}%</code>
   
-    🎉 Congratulations! Your investment has grown by ₦${quarter.ending_capital - quarter.starting_capital}!
+    🎉 Congratulations! Your investment has grown by ${formatNumber(quarter.ending_capital - quarter.starting_capital)}!
   `,
           {
             parse_mode: 'HTML'
@@ -579,11 +580,10 @@ bot.on('callback_query', async (ctx) => {
           await ctx.reply(
             `<b>Investment Summary</b>
   
-  💰 Initial Investment: <code>₦${account.initial_balance}</code>
-  📈 Current Balance: <code>₦${account.current_balance}</code>
-  📊 Return on Investment (ROI): <code>${accountROI * 100}%</code>
-
-  🎉 Your investment has grown by ₦${account.current_balance - account.initial_balance}!`,
+    \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
+    📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
+    📊 You have withdrawn a total of: <code>${formatNumber(totalWithdrawals)}</code>
+    <i>\ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!</i>`,
             {
               parse_mode: 'HTML'
             }
