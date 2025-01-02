@@ -96,3 +96,14 @@ export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number)
   const finalAmount: number = parseFloat(((percentageGrowth / 100) * initialAmount + initialAmount).toFixed(2));
   return finalAmount;
 }
+
+export function formatNumber(amount: number): string {
+  const formattedNumber: string = new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+
+  return formattedNumber;
+}

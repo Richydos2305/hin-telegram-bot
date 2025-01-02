@@ -1,6 +1,6 @@
 import { Bot, Keyboard, session } from 'grammy';
 import { FileType, SecurityQuestions, TransactionStatus, TransactionType } from '../interfaces/models';
-import { MyContext, initial, ROICalcForClient, ROICalcForAdmin } from '../helpers/index';
+import { MyContext, initial, ROICalcForClient, ROICalcForAdmin, formatNumber } from '../helpers/index';
 import { settings } from '../config/application';
 import { Users, IUser } from '../models/users';
 import { Admins, IAdmin } from '../models/admins';
@@ -70,7 +70,7 @@ bot.command('login', async (ctx) => {
 
 bot.command('deposit', async (ctx) => {
   if (ctx.session.loggedIn) {
-    await ctx.reply('Input amount to deposit in Naira');
+    await ctx.reply('Input amount to deposit in ₦ (Naira)');
     ctx.session.state = 'depositRequestInProgress';
   } else {
     await ctx.reply('**Login Required** 🔒\n\nUse /login to access this feature.');
@@ -115,8 +115,8 @@ bot.on('message', async (ctx) => {
             quarter: ctx.session.quarter,
             roi: roi / 100,
             commission: ctx.session.commissions,
-            starting_capital: startingCapital,
-            ending_capital: endingCapital
+            starting_capital: parseFloat(startingCapital.toFixed(2)),
+            ending_capital: parseFloat(endingCapital.toFixed(2))
           });
 
           if (quarterRecord) {
@@ -208,8 +208,7 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
-              // eslint-disable-next-line max-len
-              `**Withdrawal Approved!** 🎉\n\nYour Withdrawal Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved.\n\nThank you for your patronage! We appreciate your business. 😊`
+              `**Withdrawal Approved!** 🎉\n\nYour Withdrawal Request of ₦${formatNumber(ctx.session.currentTransaction.transaction.amount)} has been approved.\n\nThank you for your patronage! We appreciate your business. 😊`
             );
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
@@ -234,8 +233,7 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
-              // eslint-disable-next-line max-len
-              `**Deposit Approved!** 📈\n\nYour Deposit Request of ₦${ctx.session.currentTransaction.transaction.amount} has been approved. Thank you for choosing us! We wish you continued success. 🙏`
+              `**Deposit Approved!** 📈\n\nYour Deposit Request of ₦${formatNumber(ctx.session.currentTransaction.transaction.amount)} has been approved. Thank you for choosing us! We wish you continued success. 🙏`
             );
           ctx.session.state = null;
           ctx.session.currentTransaction = null;
@@ -258,8 +256,7 @@ bot.on('message', async (ctx) => {
           if (user)
             await bot.api.sendMessage(
               user.chat_id,
-              // eslint-disable-next-line max-len
-              `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ₦${ctx.session.currentTransaction.transaction.amount} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
+              `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ₦${formatNumber(ctx.session.currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
             );
         }
       } else if (ctx.session.transactions.length > 0) {
@@ -294,7 +291,7 @@ bot.on('message', async (ctx) => {
           await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
           await bot.api.sendMessage(
             settings.adminChatId,
-            `${ctx.session.userData.username} just made a withdrawal request of N${amount}.
+            `${ctx.session.userData.username} just made a withdrawal request of N${formatNumber(Number(amount))}.
           Kindly use /transactions to confirm this.`
           );
           ctx.session.state = null;
@@ -308,7 +305,7 @@ bot.on('message', async (ctx) => {
       const amount = ctx.message.text;
       if (amount && !isNaN(Number(amount))) {
         await ctx.reply(`**Confirm Deposit** 
-          💸\n\nPlease make a transfer of ₦${amount} to the following account: \n\n0021919337 - Access Bank 
+          💸\n\nPlease make a transfer of ₦${formatNumber(Number(amount))} to the following account: \n\n0021919337 - Access Bank 
           \nRichard Dosunmu.\n\nAttach the receipt as your response to this message. 📝`);
         ctx.session.state = 'depositRequestConfirmation';
         ctx.session.amount = Number(amount);
@@ -348,7 +345,7 @@ bot.on('message', async (ctx) => {
               Please allow 1-2 business days for the funds to reflect in your account. 🕒`);
             await bot.api.sendMessage(
               settings.adminChatId,
-              `${user.username} just made a deposit request of N${ctx.session.amount}.
+              `${user.username} just made a deposit request of N${formatNumber(ctx.session.amount)}.
             Kindly use /transactions to confirm this.`
             );
             ctx.session.state = null;
@@ -471,7 +468,7 @@ bot.on('callback_query', async (ctx) => {
           const user = await Users.findById(transaction.user_id).select('username chat_id');
           console.log(user);
 
-          result.push(`${user?.username} - ₦${transaction.amount} - ${transaction.type}`);
+          result.push(`${user?.username} - ${formatNumber(transaction.amount)} - ${transaction.type}`);
           modifiedTransactions.push({ user, transaction });
         }
         await ctx.reply(result.join('\n'));
@@ -486,17 +483,18 @@ bot.on('callback_query', async (ctx) => {
     }
   } else if (callbackData === 'check_performance') {
     if (ctx.session.loggedIn) {
+      await ctx.reply('Performance Summary');
       const quarter = await Quarters.find({ user_id: ctx.session.userData._id });
       if (quarter) {
         for (let i = 0; i < quarter.length; i++) {
           await ctx.reply(
-            `  <b>Investment Summary for ${quarter[i].quarter} in ${quarter[i].year}</b>
+            `  <b>Investment Summary for Q${quarter[i].quarter} in ${quarter[i].year}</b>
   
-    💰 Starting Balance: <code>₦${quarter[i].starting_capital}</code>
-    📈 Ending Balance: <code>₦${quarter[i].ending_capital}</code>
+    💰 Starting Balance: <code>₦${formatNumber(quarter[i].starting_capital)}</code>
+    📈 Ending Balance: <code>₦${formatNumber(quarter[i].ending_capital)}</code>
     📊 Return on Investment (ROI): <code>${quarter[i].roi * 100}%</code>
   
-    👍 Your investment has grown by ${quarter[i].ending_capital - quarter[i].starting_capital}!
+    👍 Your investment has grown by ${formatNumber(quarter[i].ending_capital - quarter[i].starting_capital)}!
   `,
             {
               parse_mode: 'HTML'
@@ -513,13 +511,13 @@ bot.on('callback_query', async (ctx) => {
       if (quarter) {
         await ctx.reply(
           `
-    📊 Investment Update for quarter ${quarter.quarter} 📊
+    📊 <b>Investment Update for quarter ${quarter.quarter}<b> 📊
   
-    💰 Starting Balance: <code>₦${quarter.starting_capital}</code>
-    📈 Ending Balance: <code>₦${quarter.ending_capital}</code>
+    💰 Starting Balance: <code>₦${formatNumber(quarter.starting_capital)}</code>
+    📈 Ending Balance: <code>₦${formatNumber(quarter.ending_capital)}</code>
     📊 Return on Investment (ROI): <code>${quarter.roi * 100}%</code>
   
-    🎉 Congratulations! Your investment has grown by ₦${quarter.ending_capital - quarter.starting_capital}!
+    🎉 Congratulations! Your investment has grown by ₦${formatNumber(quarter.ending_capital - quarter.starting_capital)}!
   `,
           {
             parse_mode: 'HTML'
@@ -552,25 +550,26 @@ bot.on('callback_query', async (ctx) => {
           await ctx.reply(
             `<b>Investment Summary</b>
   
-    \ud83d\udcb0 Initial Investment: <code>₦${account.initial_balance}</code>
-    📈 Current Balance: <code>₦${account.current_balance}</code>
-    📊 You have withdrawn a total of: <code>${totalWithdrawals}%</code>
-    <i>\ud83d\udc4d Your investment has grown by ₦${account.current_balance - account.initial_balance}!</i>`,
+    \ud83d\udcb0 Initial Investment: <code>₦${formatNumber(account.initial_balance)}</code>
+    📈 Current Balance: <code>₦${formatNumber(account.current_balance)}</code>
+    📊 You have withdrawn a total of: <code>₦${formatNumber(totalWithdrawals)}</code>
+    <i>\ud83d\udc4d Your investment has grown by ₦${formatNumber(account.current_balance - account.initial_balance)}!</i>`,
+            {
+              parse_mode: 'HTML'
+            }
+          );
+        } else {
+          await ctx.reply(
+            `<b>Investment Summary</b>
+  
+    \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
+    📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
+    <i>\ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!</i>`,
             {
               parse_mode: 'HTML'
             }
           );
         }
-        await ctx.reply(
-          `<b>Investment Summary</b>
-
-  \ud83d\udcb0 Initial Investment: <code>₦${account.initial_balance}</code>
-  📈 Current Balance: <code>₦${account.current_balance}</code>
-  <i>\ud83d\udc4d Your investment has grown by ₦${account.current_balance - account.initial_balance}!</i>`,
-          {
-            parse_mode: 'HTML'
-          }
-        );
       }
     } else {
       await ctx.reply('User does not exist. 🚫 Please /login to perform this action');
