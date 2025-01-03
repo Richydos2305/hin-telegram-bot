@@ -40,6 +40,7 @@
     "typescript-eslint": "^8.15.0"
   },
   "dependencies": {
+    "@grammyjs/router": "^2.0.0",
     "@types/node": "^22.9.3",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",

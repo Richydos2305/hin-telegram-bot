@@ -32,3 +32,12 @@ export interface Admin {
   password: string;
   chat_id: string;
 }
+
+export enum SessionState {
+  ASK_ROI = 'askROI',
+  ASK_COMMISSIONS = 'askCommissions',
+  TRANSACTION_RECEIPT_UPLOAD = 'transactionRequestReceiptUpload',
+  TRANSACTION_IN_PROGRESS = 'transactionRequestInProgress',
+  LOGIN_IN_PROGRESS = 'loginInProgress',
+  ADMIN_LOGIN_IN_PROGRESS = 'adminLoginInProgress'
+}

@@ -3,8 +3,8 @@ import express from 'express';
 import { settings } from './core/config/application';
 import routes from './core/routes';
 import errorHandler from './core/middleware/errorhandler';
-import { webhookCallback, Bot } from 'grammy';
-import { bot } from './core/controllers/bot';
+import { webhookCallback } from 'grammy';
+import { bot } from './core/command/bot';
 
 const app = express();
 const port = settings.port || 5000;

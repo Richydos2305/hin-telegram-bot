@@ -3,7 +3,10 @@ import { settings } from '../config/application';
 import { sign } from 'jsonwebtoken';
 import { Users } from '../models/users';
 import { Types } from 'mongoose';
-import { SessionFlavor, Context } from 'grammy';
+import { SessionFlavor, Context, CommandContext } from 'grammy';
+import { Accounts } from '../models/accounts';
+import { Quarters } from '../models/quarters';
+import { bot } from '../command/bot';
 
 export function handleError(res: Response, statusCode: number, message: string): void {
   res.status(statusCode).send({ message });
@@ -107,3 +110,71 @@ export function formatNumber(amount: number): string {
 
   return formattedNumber;
 }
+
+export const makeAnEntry = async (ctx: CommandContext<MyContext>): Promise<void> => {
+  try {
+    let startingCapital: number;
+    let endingCapital: number = 0;
+    let result: number | { finalAmount: number; managementFee: number; newROI: number };
+
+    const users = await Users.find();
+    for (const user of users) {
+      const account = await Accounts.findOne({ user_id: user._id });
+      let roi = ctx.session.roi;
+      if (account) {
+        startingCapital = account.current_balance;
+        if (ctx.session.commissions === false) {
+          result = ROICalcForAdmin(roi, startingCapital);
+          endingCapital = result;
+        } else if (ctx.session.commissions === true) {
+          result = ROICalcForClient(roi, startingCapital);
+          roi = result.newROI;
+          endingCapital = result.finalAmount;
+        }
+        const quarterRecord = await Quarters.create({
+          user_id: user._id,
+          account_id: account._id,
+          year: ctx.session.year,
+          quarter: ctx.session.quarter,
+          roi: roi / 100,
+          commission: ctx.session.commissions,
+          starting_capital: parseFloat(startingCapital.toFixed(2)),
+          ending_capital: parseFloat(endingCapital.toFixed(2))
+        });
+
+        if (quarterRecord) {
+          account.current_balance = quarterRecord.ending_capital;
+          account.roi = (account.current_balance - account.initial_balance) / account.initial_balance;
+          await account.save();
+
+          await ctx.reply(`Successful Entry for ${user.username}`);
+          await bot.api.sendMessage(
+            user.chat_id,
+            `Quarterly Performance Update for Q${ctx.session.quarter}
+
+            A whole 3 months has passed by and we are done for the quarter.
+            Kindly log in and check the latest results.
+
+            Once again, thank you for your patronage.
+            `
+          );
+        }
+      }
+    }
+    await ctx.reply('Check db to confirm. Done');
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const setROI = async (ctx: any): Promise<void> => {
+  ctx.session.roi = Number(ctx.message.text);
+  if (ctx.session.roi >= -100) {
+    await ctx.reply(`Add Commissions? Respond with yes or no`);
+    ctx.session.state = 'askCommissions';
+    return;
+  } else {
+    await ctx.reply('Please input a valid ROI amount, between -100% and 200%');
+    return;
+  }
+};
