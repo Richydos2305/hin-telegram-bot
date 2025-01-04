@@ -33,6 +33,9 @@ const router = new Router<MyContext>((ctx) => {
     return 'deposit';
   } else if (messageText === '/withdraw') {
     return 'withdraw';
+  } else {
+    ctx.reply('No Response for that command');
+    console.log(messageText);
   }
 });
 
