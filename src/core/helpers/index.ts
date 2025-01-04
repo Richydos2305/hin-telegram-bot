@@ -111,10 +111,11 @@ export function formatNumber(amount: number): string {
   return formattedNumber;
 }
 
-export const makeAnEntry = async (ctx: CommandContext<MyContext>): Promise<void> => {
+export const makeAnEntry = async (ctx: any): Promise<void> => {
   try {
     let startingCapital: number;
     let endingCapital: number = 0;
+    let managementFee: number = 0;
     let result: number | { finalAmount: number; managementFee: number; newROI: number };
 
     const users = await Users.find();
@@ -128,6 +129,7 @@ export const makeAnEntry = async (ctx: CommandContext<MyContext>): Promise<void>
           endingCapital = result;
         } else if (ctx.session.commissions === true) {
           result = ROICalcForClient(roi, startingCapital);
+          managementFee += result.managementFee;
           roi = result.newROI;
           endingCapital = result.finalAmount;
         }
@@ -143,6 +145,8 @@ export const makeAnEntry = async (ctx: CommandContext<MyContext>): Promise<void>
         });
 
         if (quarterRecord) {
+          console.log(quarterRecord);
+
           account.current_balance = quarterRecord.ending_capital;
           account.roi = (account.current_balance - account.initial_balance) / account.initial_balance;
           await account.save();
@@ -162,19 +166,8 @@ export const makeAnEntry = async (ctx: CommandContext<MyContext>): Promise<void>
       }
     }
     await ctx.reply('Check db to confirm. Done');
+    await bot.api.sendMessage(settings.adminChatId, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
   } catch (error) {
     console.error(error);
-  }
-};
-
-export const setROI = async (ctx: any): Promise<void> => {
-  ctx.session.roi = Number(ctx.message.text);
-  if (ctx.session.roi >= -100) {
-    await ctx.reply(`Add Commissions? Respond with yes or no`);
-    ctx.session.state = 'askCommissions';
-    return;
-  } else {
-    await ctx.reply('Please input a valid ROI amount, between -100% and 200%');
-    return;
   }
 };

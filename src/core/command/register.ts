@@ -3,7 +3,7 @@ import { MyContext } from '../helpers';
 import { SecurityQuestions } from '../interfaces/models';
 
 const { MOTHER_MAIDEN_NAME, NAME_OF_CITY_YOU_WERE_BORN_IN, NAME_OF_FIRST_PET, NAME_OF_YOUR_PRIMARY_SCHOOL } = SecurityQuestions;
-const questions: string[] = [MOTHER_MAIDEN_NAME, NAME_OF_CITY_YOU_WERE_BORN_IN, NAME_OF_FIRST_PET, NAME_OF_YOUR_PRIMARY_SCHOOL];
+export const questions: string[] = [MOTHER_MAIDEN_NAME, NAME_OF_CITY_YOU_WERE_BORN_IN, NAME_OF_FIRST_PET, NAME_OF_YOUR_PRIMARY_SCHOOL];
 
 const buttonRows = questions.map((question) => [Keyboard.text(question)]);
 const pickSecurityQuestion = '<b>Pick a Security Question for your Account.</b>';
