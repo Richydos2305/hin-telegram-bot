@@ -44,7 +44,17 @@ bot.use(
       route: '',
       leftOperand: 0,
       rightOperand: 0
-    })
+    }),
+    getSessionKey: (ctx) => {
+      // Use `chat.id` if available, otherwise `from.id`
+      if (ctx.chat) {
+        return `chat:${ctx.chat.id}`;
+      } else if (ctx.from) {
+        return `user:${ctx.from.id}`;
+      }
+      // Return null for updates without `chat` or `from` (skips session handling)
+      return undefined;
+    }
   })
 );
 
