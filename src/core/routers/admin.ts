@@ -19,7 +19,7 @@ router.route('adminLoginInProgress', async (ctx) => {
             { text: 'View Transactions', callback_data: 'view_transactions' }
           ],
           [
-            { text: 'Command 3', callback_data: 'command3' },
+            { text: 'Broadcast', callback_data: 'broadcast' },
             { text: 'Command 4', callback_data: 'command4' }
           ]
         ]
@@ -175,6 +175,20 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
       await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.'`);
     }
   }
+});
+
+router.route('broadcast', async (ctx) => {
+  const { message } = ctx;
+  if (message) {
+    const users = await Users.find().select('username chat_id');
+
+    for (const user of users) {
+      await bot.api.sendMessage(user.chat_id, message.text as string, {
+        entities: message.entities
+      });
+    }
+  }
+  ctx.session.route = '';
 });
 
 export { router };

@@ -41,7 +41,6 @@ router.route('securityAnswer', async (ctx) => {
         `**Registration Successful! 🎉**\n\nYour details have been successfully registered. You can now use the /login command to access your account.`
       );
     await Accounts.create({ user_id: user._id });
-    ctx.session.state = null;
     ctx.session.route = '';
   }
 });

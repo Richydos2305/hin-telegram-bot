@@ -55,7 +55,12 @@ router.route('depositRequestConfirmation', async (ctx) => {
                 📈\n\nYour deposit request has been successfully processed.
                 Please allow 1-2 business days for the funds to reflect in your account. 🕒`);
           await bot.api.sendMessage(
-            settings.adminChatId,
+            settings.adminIds.chatId1,
+            `${userData.username} just made a deposit request of ${formatNumber(ctx.session.amount)}.
+            Kindly log in as an admin to confirm this.`
+          );
+          await bot.api.sendMessage(
+            settings.adminIds.chatId2,
             `${userData.username} just made a deposit request of ${formatNumber(ctx.session.amount)}.
             Kindly log in as an admin to confirm this.`
           );

@@ -24,7 +24,12 @@ router.route('withdrawalRequestInProgress', async (ctx) => {
         });
         await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
         await bot.api.sendMessage(
-          settings.adminChatId,
+          settings.adminIds.chatId1,
+          `${userData.username} just made a withdrawal request of ${formatNumber(Number(amount))}.
+        Kindly log in as an admin to confirm this.`
+        );
+        await bot.api.sendMessage(
+          settings.adminIds.chatId2,
           `${userData.username} just made a withdrawal request of ${formatNumber(Number(amount))}.
         Kindly log in as an admin to confirm this.`
         );

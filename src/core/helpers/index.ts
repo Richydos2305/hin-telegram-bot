@@ -168,7 +168,8 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
       }
     }
     await ctx.reply('Check db to confirm. Done');
-    await bot.api.sendMessage(settings.adminChatId, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
+    await bot.api.sendMessage(settings.adminIds.chatId1, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
+    await bot.api.sendMessage(settings.adminIds.chatId2, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
   } catch (error) {
     console.error(error);
   }

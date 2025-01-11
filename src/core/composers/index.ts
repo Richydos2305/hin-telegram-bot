@@ -64,6 +64,9 @@ composer.on('callback_query', async (ctx) => {
       } else {
         await ctx.reply('No Pending Transactions');
       }
+    } else if (callbackData === 'broadcast') {
+      await ctx.reply('Type out the message you want to send to your investors');
+      ctx.session.route = 'broadcast';
     }
   } else if (loggedIn) {
     const callbackData = ctx.callbackQuery.data;
