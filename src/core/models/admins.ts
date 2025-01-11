@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { Admin } from '../interfaces/models';
+import { Admin } from '../interfaces';
 
 export interface IAdmin extends Admin, Document {}
 

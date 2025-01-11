@@ -1,6 +1,6 @@
 import { CommandContext, Keyboard } from 'grammy';
 import { MyContext } from '../helpers';
-import { SecurityQuestions } from '../interfaces/models';
+import { SecurityQuestions } from '../interfaces';
 
 const { MOTHER_MAIDEN_NAME, NAME_OF_CITY_YOU_WERE_BORN_IN, NAME_OF_FIRST_PET, NAME_OF_YOUR_PRIMARY_SCHOOL } = SecurityQuestions;
 export const questions: string[] = [MOTHER_MAIDEN_NAME, NAME_OF_CITY_YOU_WERE_BORN_IN, NAME_OF_FIRST_PET, NAME_OF_YOUR_PRIMARY_SCHOOL];
@@ -14,5 +14,5 @@ export const handleRegister = async (ctx: CommandContext<MyContext>): Promise<vo
     parse_mode: 'HTML',
     reply_markup: keyboard
   });
-  ctx.session.state = 'securityQuestion';
+  ctx.session.route = 'securityQuestion';
 };

@@ -1,7 +1,7 @@
 import { CommandContext, Keyboard } from 'grammy';
 import { MyContext } from '../helpers';
 import { Admins } from '../models/admins';
-import { TransactionStatus } from '../interfaces/models';
+import { TransactionStatus } from '../interfaces';
 
 const transactionConfirmationCommand: string[] = [TransactionStatus.APPROVED, TransactionStatus.DENIED];
 
@@ -15,7 +15,7 @@ export const handleAdmin = async (ctx: CommandContext<MyContext>): Promise<void>
     console.log(ctx.message?.chat.id);
 
     await ctx.reply('**Enter Password 🔒**\n\nPlease type your password to proceed...', { parse_mode: 'Markdown' });
-    ctx.session.state = 'adminLoginInProgress';
+    ctx.session.route = 'adminLoginInProgress';
     ctx.session.userData = admin;
   } else {
     await ctx.reply('**Admin Not Found** 🚫\n\nPlease check your credentials and try again.');

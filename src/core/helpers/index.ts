@@ -6,7 +6,7 @@ import { Types } from 'mongoose';
 import { SessionFlavor, Context, CommandContext } from 'grammy';
 import { Accounts } from '../models/accounts';
 import { Quarters } from '../models/quarters';
-import { bot } from '../command/bot';
+import { bot } from '../..';
 
 export function handleError(res: Response, statusCode: number, message: string): void {
   res.status(statusCode).send({ message });
@@ -51,6 +51,7 @@ export interface SessionData {
   year: number;
   quarter: number;
   commissions: boolean;
+  route: string;
 }
 
 export function initial(): SessionData {
@@ -71,7 +72,8 @@ export function initial(): SessionData {
     total_capital: 0,
     year: 0,
     quarter: 0,
-    commissions: true
+    commissions: true,
+    route: ''
   };
 }
 

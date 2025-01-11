@@ -1,37 +1,31 @@
 import express from 'express';
-import { Bot, session } from 'grammy';
-import { composer } from './scaling/composers';
-import { router as addRouter } from './scaling/routers/add';
-import { router as multiplyRouter } from './scaling/routers/multiply';
+import { connectMongoDB } from './core/database';
 import { settings } from './core/config/application';
+import { Bot, session } from 'grammy';
+import { composer } from './core/composers';
+import { router as adminRouter } from './core/routers/admin';
+import { router as registerRouter } from './core/routers/register';
+import { router as loginRouter } from './core/routers/login';
+import { router as depositRouter } from './core/routers/deposit';
+import { router as withdrawalRouter } from './core/routers/withdraw';
 
-import type { CustomContext } from './scaling/types/CustomContext';
-import type { SessionData } from './scaling/types/SessionData';
+import { initial, MyContext } from './core/helpers';
 
-// 1. Create a bot with a token (get it from https://t.me/BotFather)
-const bot = new Bot<CustomContext>(settings.botToken); // <-- place your token inside this string
+export const bot = new Bot<MyContext>(settings.botToken);
 
-// 2. Attach an api throttler transformer to the bot
+bot.use(session({ initial }));
 
-// 3. Attach a session middleware and specify the initial data
-bot.use(
-  session({
-    initial: (): SessionData => ({
-      route: '',
-      leftOperand: 0,
-      rightOperand: 0
-    })
-  })
-);
+bot.use(adminRouter);
+bot.use(loginRouter);
+bot.use(registerRouter);
+bot.use(depositRouter);
+bot.use(withdrawalRouter);
 
-// 4. Attach all routers to the bot as middleware
-bot.use(addRouter);
-bot.use(multiplyRouter);
-
-// 5. Attach all composers to the bot as middleware
 bot.use(composer);
 
 bot.start();
+
+connectMongoDB();
 
 const app = express();
 const port = settings.port || 5000;
