@@ -2,12 +2,13 @@ import { Bot, session } from 'grammy';
 import { composer } from './composers';
 import { router as addRouter } from './routers/add';
 import { router as multiplyRouter } from './routers/multiply';
+import { settings } from '../core/config/application';
 
 import type { CustomContext } from './types/CustomContext';
 import type { SessionData } from './types/SessionData';
 
 // 1. Create a bot with a token (get it from https://t.me/BotFather)
-const bot = new Bot<CustomContext>(''); // <-- place your token inside this string
+const bot = new Bot<CustomContext>(settings.botToken); // <-- place your token inside this string
 
 // 2. Attach an api throttler transformer to the bot
 
