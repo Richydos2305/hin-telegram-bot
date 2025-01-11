@@ -4,6 +4,7 @@ import { composer } from './scaling/composers';
 import { router as addRouter } from './scaling/routers/add';
 import { router as multiplyRouter } from './scaling/routers/multiply';
 import { settings } from './core/config/application';
+import { webhookCallback } from 'grammy';
 
 import type { CustomContext } from './scaling/types/CustomContext';
 import type { SessionData } from './scaling/types/SessionData';
@@ -31,10 +32,16 @@ bot.use(multiplyRouter);
 // 5. Attach all composers to the bot as middleware
 bot.use(composer);
 
-// 6. Start the bot
-bot.start();
-
 const app = express();
+app.use(webhookCallback(bot, 'express'));
+
+const setWebhook = async (): Promise<void> => {
+  const webhookUrl = `${settings.webhookUrl}/webhook`;
+  await bot.api.setWebhook(webhookUrl);
+};
+
+setWebhook().catch(console.error);
+
 const port = settings.port || 5000;
 app.listen(port, () => {
   console.log(`Server running on Port ${port}`);
