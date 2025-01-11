@@ -29,17 +29,22 @@ bot.use(
 bot.use(addRouter);
 bot.use(multiplyRouter);
 
+console.log('Testing 1');
+
 // 5. Attach all composers to the bot as middleware
 bot.use(composer);
 
+console.log('Testing 2');
 const app = express();
 app.use(webhookCallback(bot, 'express'));
 
+console.log('Testing 3');
 const setWebhook = async (): Promise<void> => {
   const webhookUrl = `${settings.webhookUrl}/webhook`;
   await bot.api.setWebhook(webhookUrl);
 };
 
+console.log('Testing 4');
 setWebhook().catch(console.error);
 
 const port = settings.port || 5000;
