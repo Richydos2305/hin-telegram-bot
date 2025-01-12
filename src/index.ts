@@ -29,6 +29,9 @@ connectMongoDB();
 
 const app = express();
 const port = settings.port || 5000;
+app.get('/status', (req, res) => {
+  res.status(200).send('Hello, World!');
+});
 app.listen(port, () => {
   console.log(`Server running on Port ${port}`);
 });
