@@ -76,7 +76,7 @@ composer.on('callback_query', async (ctx) => {
       if (quarter) {
         for (let i = 0; i < quarter.length; i++) {
           await ctx.reply(
-            `  <b>Investment Summary for Q${quarter[i].quarter} in ${quarter[i].year}</b>
+            `📊 <b>Investment Summary for Q${quarter[i].quarter} in ${quarter[i].year}</b>
 
     💰 Starting Balance: <code>${formatNumber(quarter[i].starting_capital)}</code>
     📈 Ending Balance: <code>${formatNumber(quarter[i].ending_capital)}</code>
@@ -124,7 +124,7 @@ composer.on('callback_query', async (ctx) => {
             totalWithdrawals += transaction.amount;
           }
           await ctx.reply(
-            `<b>Investment Summary</b>
+            `📊 <b>Investment Summary</b>
 
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
     📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
@@ -136,7 +136,7 @@ composer.on('callback_query', async (ctx) => {
           );
         } else {
           await ctx.reply(
-            `<b>Investment Summary</b>
+            `📊 <b>Investment Summary</b>
 
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
     📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
@@ -154,7 +154,7 @@ composer.on('callback_query', async (ctx) => {
 });
 
 composer.use(async (ctx) => {
-  if (ctx.session) await ctx.reply('Not a recognised input. If you need help, do /start.');
+  if (ctx.session) await ctx.reply('**Not a recognised input** \nIf you need help, do /start.');
 });
 
 export { composer };

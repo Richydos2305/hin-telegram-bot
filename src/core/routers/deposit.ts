@@ -13,9 +13,9 @@ router.route('depositRequestInProgress', async (ctx) => {
   if (message) {
     const amount = message.text;
     if (amount && !isNaN(Number(amount))) {
-      await ctx.reply(`**Confirm Deposit**
-        💸\n\nPlease make a transfer of ₦${formatNumber(Number(amount))} to the following account: \n\n0021919337 - Access Bank
-        \nRichard Dosunmu.\n\nAttach the receipt as your response to this message. 📝`);
+      await ctx.reply(`<b>Confirm Deposit</b> 💸\n\nPlease make a transfer of ${formatNumber(Number(amount))} to the following account: \n0021919337 - Access Bank - Richard Dosunmu.\n\nAttach the receipt as your response to this message. 📝`,
+        { parse_mode: 'HTML' }
+      );
       ctx.session.route = 'depositRequestConfirmation';
       ctx.session.amount = Number(amount);
     } else {
@@ -51,9 +51,10 @@ router.route('depositRequestConfirmation', async (ctx) => {
           receipt
         });
         if (transactionRecord) {
-          await ctx.reply(`**Deposit Request!**
-                📈\n\nYour deposit request has been successfully processed.
-                Please allow 1-2 business days for the funds to reflect in your account. 🕒`);
+          await ctx.reply(`<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.
+                Please allow 1-2 business days for the funds to reflect in your account. 🕒`,
+              { parse_mode: 'HTML' }
+            );
           await bot.api.sendMessage(
             settings.adminIds.chatId1,
             `${userData.username} just made a deposit request of ${formatNumber(ctx.session.amount)}.

@@ -37,7 +37,8 @@ router.route('securityAnswer', async (ctx) => {
 
     if (user)
       await ctx.reply(
-        `**Registration Successful! 🎉**\n\nYour details have been successfully registered. You can now use the /login command to access your account.`
+        `<b>Registration Successful!</b> 🎉\n\nYour details have been successfully registered. You can now use the /login command to access your account.`,
+        { parse_mode: 'HTML' }
       );
     await Accounts.create({ user_id: user._id });
     ctx.session.route = '';

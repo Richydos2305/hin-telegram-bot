@@ -20,7 +20,6 @@ router.route('adminLoginInProgress', async (ctx) => {
           ],
           [
             { text: 'Broadcast', callback_data: 'broadcast' },
-            { text: 'Command 4', callback_data: 'command4' }
           ]
         ]
       }
@@ -28,7 +27,7 @@ router.route('adminLoginInProgress', async (ctx) => {
     ctx.session.isAdmin = true;
     ctx.session.route = '';
   } else {
-    await ctx.reply('Invalid Password. Try /admin for another attempt');
+    await ctx.reply('**Invalid Password** 🚫\n\n Try /admin for another attempt');
     ctx.session.userData = null;
     ctx.session.route = '';
   }
@@ -109,7 +108,8 @@ router.route('transactionRequestInProgress', async (ctx) => {
       if (user)
         await bot.api.sendMessage(
           user.chat_id,
-          `**Deposit Approved!** 📈\n\nYour Deposit Request of ${formatNumber(currentTransaction.transaction.amount)} has been approved. Thank you for choosing us! We wish you continued success. 🙏`
+          `<b>Deposit Approved!</b> 📈\n\nYour Deposit Request of ${formatNumber(currentTransaction.transaction.amount)} has been approved. Thank you for choosing us! We wish you continued success. 🙏`,
+          { parse_mode: 'HTML' }
         );
       ctx.session.route = '';
       ctx.session.currentTransaction = null;
@@ -127,7 +127,7 @@ router.route('transactionRequestInProgress', async (ctx) => {
       if (user)
         await bot.api.sendMessage(
           user.chat_id,
-          `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ₦${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
+          `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
         );
     }
   }
@@ -166,13 +166,14 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
       if (user)
         await bot.api.sendMessage(
           user.chat_id,
-          `**Withdrawal Approved!** 🎉\n\nYour Withdrawal Request of ₦${formatNumber(currentTransaction.transaction.amount)} has been approved.\n\nThank you for your patronage! We appreciate your business. 😊`
+          `<b>Withdrawal Approved!</b> 🎉\n\nYour Withdrawal Request of ${formatNumber(currentTransaction.transaction.amount)} has been approved.\n\nThank you for your patronage! We appreciate your business. 😊`,
+          { parse_mode: 'HTML' }
         );
       ctx.session.route = '';
       ctx.session.currentTransaction = null;
       ctx.session.transactions = [];
     } else {
-      await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.'`);
+      await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.`);
     }
   }
 });

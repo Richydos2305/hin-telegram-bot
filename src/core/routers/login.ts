@@ -18,7 +18,6 @@ router.route('loginInProgress', async (ctx) => {
             ],
             [
               { text: 'Investment Status', callback_data: 'investment_status' },
-              { text: 'Command 4', callback_data: 'command4' }
             ]
           ]
         }
