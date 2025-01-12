@@ -129,7 +129,7 @@ composer.on('callback_query', async (ctx) => {
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
     📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
     📊 You have withdrawn a total of: <code>${formatNumber(totalWithdrawals)}</code>
-    <i>\ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!</i>`,
+    \ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!`,
             {
               parse_mode: 'HTML'
             }
@@ -140,7 +140,7 @@ composer.on('callback_query', async (ctx) => {
 
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
     📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
-    <i>\ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!</i>`,
+    \ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!`,
             {
               parse_mode: 'HTML'
             }

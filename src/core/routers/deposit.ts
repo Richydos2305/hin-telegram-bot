@@ -51,8 +51,7 @@ router.route('depositRequestConfirmation', async (ctx) => {
           receipt
         });
         if (transactionRecord) {
-          await ctx.reply(`<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.
-                Please allow 1-2 business days for the funds to reflect in your account. 🕒`,
+          await ctx.reply(`<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
               { parse_mode: 'HTML' }
             );
           await bot.api.sendMessage(

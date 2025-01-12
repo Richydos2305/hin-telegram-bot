@@ -165,10 +165,10 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
             user.chat_id,
             `Quarterly Performance Update for Q${ctx.session.quarter}
 
-            A whole 3 months has passed by and we are done for the quarter.
-            Kindly log in and check the latest results.
+A whole 3 months has passed by and we are done for the quarter.
+Kindly log in and check the latest results.
 
-            Once again, thank you for your patronage.
+Once again, thank you for your patronage.
             `
           );
         }
