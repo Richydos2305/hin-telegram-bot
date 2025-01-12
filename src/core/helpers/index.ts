@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { settings } from '../config/application';
-import { sign } from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
 import { Users } from '../models/users';
 import { Types } from 'mongoose';
 import { SessionFlavor, Context, CommandContext } from 'grammy';
@@ -12,12 +12,11 @@ export function handleError(res: Response, statusCode: number, message: string):
   res.status(statusCode).send({ message });
 }
 
-export function getAccessToken(user: { name: string; email: string; id: Types.ObjectId }): string {
+export function getAccessToken(user: { username: string; id: Types.ObjectId }): string {
   const accessToken = sign(
     {
       userDetails: {
-        name: user.name,
-        email: user.email,
+        name: user.username,
         id: user.id
       }
     },
@@ -25,6 +24,16 @@ export function getAccessToken(user: { name: string; email: string; id: Types.Ob
     { expiresIn: '4h' }
   );
   return accessToken;
+}
+
+export function isLoggedIn(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    verify(token, settings.secretKey);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 export async function userExists(loggedInUserId: Types.ObjectId): Promise<boolean> {
@@ -36,8 +45,7 @@ export async function userExists(loggedInUserId: Types.ObjectId): Promise<boolea
 export interface SessionData {
   securityQuestionAsked: boolean;
   securityQuestionAnswered: boolean;
-  state: string | null;
-  loggedIn: boolean;
+  token: string | null;
   securityQuestion: string | null;
   securityAnswer: string | null;
   userData?: any;
@@ -58,8 +66,7 @@ export function initial(): SessionData {
   return {
     securityQuestionAsked: false,
     securityQuestionAnswered: false,
-    state: null,
-    loggedIn: false,
+    token: null,
     securityQuestion: null,
     securityAnswer: null,
     userData: null,

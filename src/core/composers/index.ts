@@ -1,5 +1,5 @@
 import { Composer } from 'grammy';
-import { formatNumber, MyContext } from '../helpers';
+import { formatNumber, isLoggedIn, MyContext } from '../helpers';
 import { handleStart } from '../command/start';
 import { handleAdmin } from '../command/admin';
 import { handleRegister } from '../command/register';
@@ -23,7 +23,7 @@ composer.command('withdraw', handleWithdrawal);
 composer.command('start', handleStart);
 
 composer.on('callback_query', async (ctx) => {
-  const { isAdmin, loggedIn, userData } = ctx.session;
+  const { isAdmin, userData, token } = ctx.session;
   if (isAdmin) {
     const callbackData = ctx.callbackQuery.data;
     if (callbackData === 'make_entry') {
@@ -68,7 +68,7 @@ composer.on('callback_query', async (ctx) => {
       await ctx.reply('Type out the message you want to send to your investors');
       ctx.session.route = 'broadcast';
     }
-  } else if (loggedIn) {
+  } else if (isLoggedIn(token)) {
     const callbackData = ctx.callbackQuery.data;
     if (callbackData === 'check_performance') {
       await ctx.reply('Performance Summary');

@@ -1,8 +1,8 @@
 import { CommandContext } from 'grammy';
-import { MyContext } from '../helpers';
+import { isLoggedIn, MyContext } from '../helpers';
 
 export const handleDeposit = async (ctx: CommandContext<MyContext>): Promise<void> => {
-  if (ctx.session.loggedIn) {
+  if (isLoggedIn(ctx.session.token)) {
     await ctx.reply('Input amount to deposit in ₦ (Naira)');
     ctx.session.route = 'depositRequestInProgress';
   } else {

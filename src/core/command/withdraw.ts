@@ -1,8 +1,8 @@
 import { CommandContext } from 'grammy';
-import { MyContext } from '../helpers';
+import { isLoggedIn, MyContext } from '../helpers';
 
 export const handleWithdrawal = async (ctx: CommandContext<MyContext>): Promise<void> => {
-  if (ctx.session.loggedIn) {
+  if (isLoggedIn(ctx.session.token)) {
     await ctx.reply('**Withdrawal Amount** 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)');
     ctx.session.route = 'withdrawalRequestInProgress';
   } else {

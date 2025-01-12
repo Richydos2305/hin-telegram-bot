@@ -18,7 +18,6 @@ router.route('securityQuestion', async (ctx) => {
       if (selectedQuestion && questions.includes(selectedQuestion)) {
         ctx.session.securityQuestion = selectedQuestion;
         await ctx.reply(`So ${message.text}`);
-        ctx.session.state = 'securityAnswer';
         ctx.session.route = 'securityAnswer';
       } else {
         await ctx.reply('**Invalid Security Question** 📝\n\nPlease select a valid security question using the /register command.');
