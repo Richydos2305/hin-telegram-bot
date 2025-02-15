@@ -19,10 +19,8 @@ export const handleAdmin = async (ctx: CommandContext<MyContext>): Promise<void>
   }
 
   if (admin) {
-    console.log(ctx.message?.chat.id);
-
-    await ctx.reply('**Enter Password 🔒**\n\nPlease type your password to proceed...', { parse_mode: 'Markdown' });
-    console.log(ctx.message?.message_id);
+    const reply = await ctx.reply('**Enter Password 🔒**\n\nPlease type your password to proceed...', { parse_mode: 'Markdown' });
+    console.log(reply.message_id);
 
     ctx.session.route = 'adminLoginInProgress';
     ctx.session.userData = admin;
