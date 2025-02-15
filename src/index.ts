@@ -9,9 +9,11 @@ import { router as loginRouter } from './core/routers/login';
 import { router as depositRouter } from './core/routers/deposit';
 import { router as withdrawalRouter } from './core/routers/withdraw';
 
-import { initial, MyContext } from './core/helpers';
+import { deleteChatHistory, initial, MyContext } from './core/helpers';
+import cron from 'node-cron';
 
 export const bot = new Bot<MyContext>(settings.botToken);
+export const messageStore = new Map<number, number[]>();
 
 bot.use(session({ initial }));
 
@@ -22,6 +24,11 @@ bot.use(depositRouter);
 bot.use(withdrawalRouter);
 
 bot.use(composer);
+
+cron.schedule('*/1 * * * *', () => {
+  console.log('Running scheduled chat cleanup...');
+  deleteChatHistory();
+});
 
 bot.start();
 

@@ -1,5 +1,5 @@
 import { CommandContext, Keyboard } from 'grammy';
-import { MyContext } from '../helpers';
+import { MyContext, trackMessage } from '../helpers';
 import { Admins } from '../models/admins';
 import { TransactionStatus } from '../interfaces';
 
@@ -11,6 +11,13 @@ export const pickTransactionStatus = '<b>Approve or Deny?</b>';
 
 export const handleAdmin = async (ctx: CommandContext<MyContext>): Promise<void> => {
   const admin = await Admins.findOne({ username: ctx.message?.from.first_name });
+  const userId = ctx.message?.chat.id;
+  const messageId = ctx.message?.message_id;
+
+  if (userId && messageId) {
+    trackMessage(userId, messageId);
+  }
+
   if (admin) {
     console.log(ctx.message?.chat.id);
 

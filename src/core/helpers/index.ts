@@ -3,14 +3,35 @@ import { settings } from '../config/application';
 import { sign, verify } from 'jsonwebtoken';
 import { Users } from '../models/users';
 import { Types } from 'mongoose';
-import { SessionFlavor, Context, CommandContext } from 'grammy';
+import { SessionFlavor, Context } from 'grammy';
 import { Accounts } from '../models/accounts';
 import { Quarters } from '../models/quarters';
-import { bot } from '../..';
+import { bot, messageStore } from '../..';
 
 export function handleError(res: Response, statusCode: number, message: string): void {
   res.status(statusCode).send({ message });
 }
+
+export const trackMessage = (userId: number, messageId: number): void => {
+  if (!messageStore.has(userId)) {
+    messageStore.set(userId, []);
+  }
+  messageStore.get(userId)?.push(messageId);
+  console.log(`User ID: ${userId}, Message ID: ${messageId}`);
+};
+
+export const deleteChatHistory = async (): Promise<void> => {
+  for (const [userId, messageIds] of messageStore.entries()) {
+    for (const messageId of messageIds) {
+      try {
+        await bot.api.deleteMessage(userId, messageId);
+      } catch (error) {
+        console.error(`Failed to delete message ${messageId} for user ${userId}:`, error);
+      }
+    }
+    messageStore.delete(userId); // Clear stored messages after deletion
+  }
+};
 
 export function getAccessToken(user: { username: string; id: Types.ObjectId }): string {
   const accessToken = sign(
@@ -32,6 +53,7 @@ export function isLoggedIn(token: string | null): boolean {
     verify(token, settings.secretKey);
     return true;
   } catch (error) {
+    console.log(error);
     return false;
   }
 }
