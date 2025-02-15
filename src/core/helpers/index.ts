@@ -12,12 +12,14 @@ export function handleError(res: Response, statusCode: number, message: string):
   res.status(statusCode).send({ message });
 }
 
-export const trackMessage = (userId: number, messageId: number): void => {
+export const trackMessage = (userId: number, messageIds: number[]): void => {
   if (!messageStore.has(userId)) {
     messageStore.set(userId, []);
   }
-  messageStore.get(userId)?.push(messageId);
-  console.log(`User ID: ${userId}, Message ID: ${messageId}`);
+  for (const messageId of messageIds) {
+    messageStore.get(userId)?.push(messageId);
+    console.log(`User ID: ${userId}, Message ID: ${messageId}`);
+  }
 };
 
 export const deleteChatHistory = async (): Promise<void> => {
