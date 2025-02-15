@@ -9,6 +9,6 @@ export const handleLogin = async (ctx: CommandContext<MyContext>): Promise<void>
     ctx.session.route = 'loginInProgress';
     ctx.session.userData = user;
   } else {
-    await ctx.reply('User does not exist.🚫\n\n Try /register instead.');
+    await ctx.reply('**User does not exist** 🚫\n\n Try /register instead.');
   }
 };
