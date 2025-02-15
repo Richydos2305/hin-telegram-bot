@@ -25,5 +25,5 @@ export const handleAdmin = async (ctx: CommandContext<MyContext>): Promise<void>
     const reply = await ctx.reply('**Admin Not Found** 🚫\n\nPlease check your credentials and try again.');
     messageIds.push(reply.message_id);
   }
-  trackMessage(userId as number, messageIds);
+  if (userId) trackMessage(userId as number, messageIds);
 };
