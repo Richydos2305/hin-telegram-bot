@@ -26,4 +26,5 @@ export const handleAdmin = async (ctx: CommandContext<MyContext>): Promise<void>
     messageIds.push(reply.message_id);
   }
   if (userId) trackMessage(userId as number, messageIds);
+  messageIds.length = 0;
 };

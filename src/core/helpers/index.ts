@@ -8,6 +8,8 @@ import { Accounts } from '../models/accounts';
 import { Quarters } from '../models/quarters';
 import { bot, messageStore } from '../..';
 
+const messageIds: number[] = [];
+
 export function handleError(res: Response, statusCode: number, message: string): void {
   res.status(statusCode).send({ message });
 }
@@ -15,14 +17,16 @@ export function handleError(res: Response, statusCode: number, message: string):
 export const trackMessage = (userId: number, messageIds: number[]): void => {
   if (!messageStore.has(userId)) {
     messageStore.set(userId, []);
+    console.log(`New user with ID: ${userId}`);
   }
   for (const messageId of messageIds) {
     messageStore.get(userId)?.push(messageId);
-    console.log(`User ID: ${userId}, Message ID: ${messageId}`);
   }
 };
 
 export const deleteChatHistory = async (): Promise<void> => {
+  console.log(messageStore);
+
   for (const [userId, messageIds] of messageStore.entries()) {
     for (const messageId of messageIds) {
       try {
@@ -31,8 +35,9 @@ export const deleteChatHistory = async (): Promise<void> => {
         console.error(`Failed to delete message ${messageId} for user ${userId}:`, error);
       }
     }
-    messageStore.delete(userId); // Clear stored messages after deletion
+    messageStore.delete(userId);
   }
+  console.log('Messages Cleared');
 };
 
 export function getAccessToken(user: { username: string; id: Types.ObjectId }): string {
@@ -116,23 +121,6 @@ function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export function ROICalcForClient(percentageGrowth: number, initialAmount: number): { finalAmount: number; managementFee: number; newROI: number } {
-  const overallProfit = parseFloat(((percentageGrowth / 100) * initialAmount).toFixed(2));
-  const randomInt = getRandomInt(25, 30);
-  const managementFee = parseFloat(((randomInt / 100) * overallProfit).toFixed(2));
-  const newProfit = overallProfit - managementFee;
-  const newROI = parseFloat(((newProfit / initialAmount) * 100).toFixed(2));
-  const finalAmount: number = newProfit + initialAmount;
-  console.log(randomInt, newProfit, newROI, managementFee);
-
-  return { finalAmount, managementFee, newROI };
-}
-
-export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number): number {
-  const finalAmount: number = parseFloat(((percentageGrowth / 100) * initialAmount + initialAmount).toFixed(2));
-  return finalAmount;
-}
-
 export function formatNumber(amount: number): string {
   const formattedNumber: string = new Intl.NumberFormat('en-NG', {
     style: 'currency',
@@ -144,8 +132,31 @@ export function formatNumber(amount: number): string {
   return formattedNumber;
 }
 
+export function ROICalcForClient(
+  username: string,
+  percentageGrowth: number,
+  initialAmount: number
+): { finalAmount: number; managementFee: number; newROI: number } {
+  const overallProfit = parseFloat(((percentageGrowth / 100) * initialAmount).toFixed(2));
+  const randomInt = getRandomInt(25, 30);
+  const managementFee = parseFloat(((randomInt / 100) * overallProfit).toFixed(2));
+  const newProfit = overallProfit - managementFee;
+  const newROI = parseFloat(((newProfit / initialAmount) * 100).toFixed(2));
+  const finalAmount: number = newProfit + initialAmount;
+
+  console.log(`${username} - Random Int = ${randomInt}%  ROI = ${newROI}%  Management Fee = ${formatNumber(managementFee)}`);
+
+  return { finalAmount, managementFee, newROI };
+}
+
+export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number): number {
+  const finalAmount: number = parseFloat(((percentageGrowth / 100) * initialAmount + initialAmount).toFixed(2));
+  return finalAmount;
+}
+
 export const makeAnEntry = async (ctx: any): Promise<void> => {
   try {
+    const userId = ctx.message?.chat.id;
     let startingCapital: number;
     let endingCapital: number = 0;
     let managementFee: number = 0;
@@ -155,13 +166,13 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
     for (const user of users) {
       const account = await Accounts.findOne({ user_id: user._id });
       let roi = ctx.session.roi;
-      if (account) {
+      if (account && account.current_balance > 0) {
         startingCapital = account.current_balance;
         if (ctx.session.commissions === false) {
           result = ROICalcForAdmin(roi, startingCapital);
           endingCapital = result;
         } else if (ctx.session.commissions === true) {
-          result = ROICalcForClient(roi, startingCapital);
+          result = ROICalcForClient(user.username, roi, startingCapital);
           managementFee += result.managementFee;
           roi = result.newROI;
           endingCapital = result.finalAmount;
@@ -178,14 +189,13 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
         });
 
         if (quarterRecord) {
-          console.log(quarterRecord);
-
           account.current_balance = quarterRecord.ending_capital;
-          account.roi = (account.current_balance - account.initial_balance) / account.initial_balance;
+          account.roi = parseFloat(((account.current_balance - account.initial_balance) / account.initial_balance).toFixed(2));
           await account.save();
 
-          await ctx.reply(`Successful Entry for ${user.username}`);
-          await bot.api.sendMessage(
+          let reply = await ctx.reply(`Successful Entry for ${user.username}`);
+          messageIds.push(reply.message_id);
+          reply = await bot.api.sendMessage(
             user.chat_id,
             `Quarterly Performance Update for Q${ctx.session.quarter}
 
@@ -195,12 +205,20 @@ Kindly log in and check the latest results.
 Once again, thank you for your patronage.
             `
           );
+          trackMessage(Number(user.chat_id), [reply.message_id]);
         }
       }
     }
-    await ctx.reply('Check db to confirm. Done');
-    await bot.api.sendMessage(settings.adminIds.chatId1, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
-    await bot.api.sendMessage(settings.adminIds.chatId2, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
+    let reply = await ctx.reply('Check db to confirm. Done');
+    messageIds.push(reply.message_id);
+    reply = await bot.api.sendMessage(settings.adminIds.chatId1, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
+    trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+
+    reply = await bot.api.sendMessage(settings.adminIds.chatId2, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
+    trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+
+    if (userId) trackMessage(userId as number, messageIds);
+    messageIds.length = 0;
   } catch (error) {
     console.error(error);
   }

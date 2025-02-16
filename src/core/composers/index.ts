@@ -1,5 +1,5 @@
 import { Composer } from 'grammy';
-import { formatNumber, isLoggedIn, MyContext } from '../helpers';
+import { formatNumber, isLoggedIn, MyContext, trackMessage } from '../helpers';
 import { handleStart } from '../command/start';
 import { handleAdmin } from '../command/admin';
 import { handleRegister } from '../command/register';
@@ -13,6 +13,7 @@ import { Users } from '../models/users';
 import { Accounts } from '../models/accounts';
 
 const composer = new Composer<MyContext>();
+const messageIds: number[] = [];
 
 composer.command('admin', handleAdmin);
 composer.command('register', handleRegister);
@@ -24,12 +25,16 @@ composer.command('start', handleStart);
 
 composer.on('callback_query', async (ctx) => {
   const { isAdmin, userData, token } = ctx.session;
+
+  const userId = ctx.update.callback_query.message?.chat.id;
+
   if (isAdmin) {
     const callbackData = ctx.callbackQuery.data;
     if (callbackData === 'make_entry') {
       const currentYear = new Date().getFullYear();
       ctx.session.year = currentYear;
-      await ctx.reply(`Year automatically set to ${currentYear}.`);
+      let reply = await ctx.reply(`Year automatically set to ${currentYear}.`);
+      messageIds.push(reply.message_id);
 
       const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
       if (lastQuarterEntry && lastQuarterEntry.quarter < 4) {
@@ -40,14 +45,16 @@ composer.on('callback_query', async (ctx) => {
         ctx.session.quarter = 1;
       }
 
-      await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
-      await ctx.reply(`Input quarters ROI`);
+      reply = await ctx.reply(`Quarter automatically set to Q${ctx.session.quarter}.`);
+      messageIds.push(reply.message_id);
+      reply = await ctx.reply(`Input quarters ROI`);
+      messageIds.push(reply.message_id);
       ctx.session.route = 'askROI';
     } else if (callbackData === 'view_transactions') {
       const result = [];
       const modifiedTransactions = [];
       const transactions = await Transactions.find({ status: TransactionStatus.PENDING });
-      console.log(`Pending Transactions: ${transactions}`);
+      console.log('A Request for Pending Transactions was made');
 
       if (transactions.length > 0) {
         for (const transaction of transactions) {
@@ -56,26 +63,32 @@ composer.on('callback_query', async (ctx) => {
           modifiedTransactions.push({ user, transaction });
         }
 
-        await ctx.reply(result.join('\n'));
-        await ctx.reply('Input a username to access their transaction request');
+        let reply = await ctx.reply(result.join('\n'));
+        messageIds.push(reply.message_id);
+        reply = await ctx.reply('Input a username to access their transaction request');
+        messageIds.push(reply.message_id);
+
         ctx.session.transactions = modifiedTransactions;
         ctx.session.route = 'viewUserTransaction';
-        console.log(`Modified Pending Transactions: ${modifiedTransactions}`);
       } else {
-        await ctx.reply('No Pending Transactions');
+        const reply = await ctx.reply('No Pending Transactions');
+        messageIds.push(reply.message_id);
       }
     } else if (callbackData === 'broadcast') {
-      await ctx.reply('Type out the message you want to send to your investors');
+      const reply = await ctx.reply('Type out the message you want to send to your investors');
+      messageIds.push(reply.message_id);
       ctx.session.route = 'broadcast';
     }
   } else if (isLoggedIn(token)) {
     const callbackData = ctx.callbackQuery.data;
     if (callbackData === 'check_performance') {
-      await ctx.reply('Performance Summary');
+      let reply = await ctx.reply('Performance Summary');
+      messageIds.push(reply.message_id);
+
       const quarter = await Quarters.find({ user_id: userData._id });
       if (quarter) {
         for (let i = 0; i < quarter.length; i++) {
-          await ctx.reply(
+          reply = await ctx.reply(
             `📊 <b>Investment Summary for Q${quarter[i].quarter} in ${quarter[i].year}</b>
 
     💰 Starting Balance: <code>${formatNumber(quarter[i].starting_capital)}</code>
@@ -88,12 +101,13 @@ composer.on('callback_query', async (ctx) => {
               parse_mode: 'HTML'
             }
           );
+          messageIds.push(reply.message_id);
         }
       }
     } else if (callbackData === 'recent_quarter') {
       const quarter = await Quarters.findOne({ user_id: userData._id }).limit(1).sort({ updatedAt: -1 });
       if (quarter) {
-        await ctx.reply(
+        const reply = await ctx.reply(
           `
     📊 <b>Investment Update for quarter ${quarter.quarter}</b> 📊
 
@@ -107,6 +121,7 @@ composer.on('callback_query', async (ctx) => {
             parse_mode: 'HTML'
           }
         );
+        messageIds.push(reply.message_id);
       }
     } else if (callbackData === 'investment_status') {
       const account = await Accounts.findOne({ user_id: userData._id });
@@ -123,7 +138,7 @@ composer.on('callback_query', async (ctx) => {
           for (const transaction of withdrawals) {
             totalWithdrawals += transaction.amount;
           }
-          await ctx.reply(
+          const reply = await ctx.reply(
             `📊 <b>Investment Summary</b>
 
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
@@ -134,8 +149,9 @@ composer.on('callback_query', async (ctx) => {
               parse_mode: 'HTML'
             }
           );
+          messageIds.push(reply.message_id);
         } else {
-          await ctx.reply(
+          const reply = await ctx.reply(
             `📊 <b>Investment Summary</b>
 
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
@@ -145,16 +161,27 @@ composer.on('callback_query', async (ctx) => {
               parse_mode: 'HTML'
             }
           );
+          messageIds.push(reply.message_id);
         }
       }
     }
   } else {
-    await ctx.reply('Not an Admin, Not Logged in. 🚫 Try /login first');
+    const reply = await ctx.reply('Not an Admin, Not Logged in. 🚫 Try /login first');
+    messageIds.push(reply.message_id);
   }
+  if (userId) trackMessage(userId as number, messageIds);
+  messageIds.length = 0;
 });
 
 composer.use(async (ctx) => {
-  if (ctx.session) await ctx.reply('**Not a recognised input** \nIf you need help, do /start.');
+  const userId = ctx.message?.chat.id;
+  messageIds.push(ctx.message?.message_id as number);
+  if (ctx.session) {
+    const reply = await ctx.reply('**Not a recognised input** \nIf you need help, do /start.');
+    messageIds.push(reply.message_id);
+  }
+  if (userId) trackMessage(userId as number, messageIds);
+  messageIds.length = 0;
 });
 
 export { composer };

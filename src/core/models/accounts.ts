@@ -1,32 +1,33 @@
-import { Schema, model } from "mongoose";
+import { Schema, model } from 'mongoose';
 
-const AccountSchema = new Schema({
+const AccountSchema = new Schema(
+  {
     user_id: {
-        type: Schema.Types.ObjectId,
-        ref: 'Users',
-        required: true
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
     },
 
     current_balance: {
-        type: Number,
-        default: 0
+      type: Number,
+      default: 0
     },
 
     initial_balance: {
-        type: Number,
-        default: 0
+      type: Number,
+      default: 0
     },
 
     roi: {
-        type: Number,
-        default: 0,
-        min: -1,
-        max: 1
+      type: Number,
+      default: 0,
+      min: -1
     }
-
-}, {
+  },
+  {
     timestamps: true,
     collection: 'accounts'
-});
+  }
+);
 
 export const Accounts = model('Account', AccountSchema);

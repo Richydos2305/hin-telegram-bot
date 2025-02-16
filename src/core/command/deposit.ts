@@ -1,11 +1,21 @@
 import { CommandContext } from 'grammy';
-import { isLoggedIn, MyContext } from '../helpers';
+import { isLoggedIn, MyContext, trackMessage } from '../helpers';
+
+const messageIds: number[] = [];
 
 export const handleDeposit = async (ctx: CommandContext<MyContext>): Promise<void> => {
+  const userId = ctx.message?.chat.id;
+  messageIds.push(ctx.message?.message_id as number);
+
   if (isLoggedIn(ctx.session.token)) {
-    await ctx.reply('Input amount to deposit in ₦ (Naira)');
+    const reply = await ctx.reply('Input amount to deposit in ₦ (Naira)');
+    messageIds.push(reply.message_id);
     ctx.session.route = 'depositRequestInProgress';
   } else {
-    await ctx.reply('**Login Required** 🔒\n\nUse /login to access this feature.');
+    const reply = await ctx.reply('**Login Required** 🔒\n\nUse /login to access this feature.');
+    messageIds.push(reply.message_id);
   }
+
+  if (userId) trackMessage(userId as number, messageIds);
+  messageIds.length = 0;
 };

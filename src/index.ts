@@ -25,7 +25,7 @@ bot.use(withdrawalRouter);
 
 bot.use(composer);
 
-cron.schedule('*/1 * * * *', () => {
+cron.schedule('0 */4 * * *', () => {
   console.log('Running scheduled chat cleanup...');
   deleteChatHistory();
 });
