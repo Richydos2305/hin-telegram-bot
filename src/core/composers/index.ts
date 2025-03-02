@@ -52,12 +52,12 @@ composer.on('callback_query', async (ctx) => {
       const result = [];
       const modifiedTransactions = [];
       const transactions = await Transactions.find({ status: TransactionStatus.PENDING });
-      console.log('A Request for Pending Transactions was made');
 
       if (transactions.length > 0) {
+        console.log('A Request for Pending Transactions was made');
         for (const transaction of transactions) {
-          const user = await Users.findById(transaction.user_id).select('username chat_id');
-          result.push(`${user?.username} - \t  ${formatNumber(transaction.amount)} - ${transaction.type}`);
+          const user = await Users.findById(transaction.user_id).select('first_name chat_id');
+          result.push(`${user?.first_name} ->  ${formatNumber(transaction.amount)} ->  ${transaction.type}`);
           modifiedTransactions.push({ user, transaction });
         }
 

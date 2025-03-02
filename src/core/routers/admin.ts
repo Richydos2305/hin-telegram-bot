@@ -129,7 +129,7 @@ router.route('transactionRequestInProgress', async (ctx) => {
   if (message) {
     const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
     const user = await Users.findById(currentTransaction.transaction.user_id);
-    console.log(`Transaction Status: ${message.text} Current Transaction: ${currentTransaction}`);
+    console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);
 
     if (message.text === TransactionStatus.APPROVED && account && currentTransaction.transaction.type === TransactionType.DEPOSIT) {
       account.current_balance += currentTransaction.transaction.amount;

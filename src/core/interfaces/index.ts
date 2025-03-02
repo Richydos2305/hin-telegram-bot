@@ -21,7 +21,7 @@ export enum TransactionStatus {
 
 export interface User {
   username: string;
-  firstname: string;
+  first_name: string;
   telegram_id: string;
   chat_id: string;
   security_q: SecurityQuestions;
