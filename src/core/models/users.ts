@@ -16,19 +16,21 @@ const UserSchema: Schema = new Schema(
       unique: true,
       trim: true
     },
+    first_name: {
+      type: String,
+      trim: true
+    },
     chat_id: {
       type: String,
       unique: true
     },
     security_q: {
       type: String,
-      required: true,
       enum: Object.values(SecurityQuestions),
       trim: true
     },
     security_a: {
       type: String,
-      required: true,
       maxlength: 225
     }
   },

@@ -4,7 +4,6 @@ import { settings } from './core/config/application';
 import { Bot, session } from 'grammy';
 import { composer } from './core/composers';
 import { router as adminRouter } from './core/routers/admin';
-import { router as registerRouter } from './core/routers/register';
 import { router as loginRouter } from './core/routers/login';
 import { router as depositRouter } from './core/routers/deposit';
 import { router as withdrawalRouter } from './core/routers/withdraw';
@@ -19,7 +18,6 @@ bot.use(session({ initial }));
 
 bot.use(adminRouter);
 bot.use(loginRouter);
-bot.use(registerRouter);
 bot.use(depositRouter);
 bot.use(withdrawalRouter);
 
