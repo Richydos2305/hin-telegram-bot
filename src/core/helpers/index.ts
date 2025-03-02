@@ -89,6 +89,7 @@ export interface SessionData {
   quarter: number;
   commissions: boolean;
   route: string;
+  transactionHistory: any[];
 }
 
 export function initial(): SessionData {
@@ -109,7 +110,8 @@ export function initial(): SessionData {
     year: 0,
     quarter: 0,
     commissions: true,
-    route: ''
+    route: '',
+    transactionHistory: []
   };
 }
 

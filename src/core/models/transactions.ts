@@ -11,6 +11,7 @@ export interface ITransactions extends Document {
     file: string;
     type: FileType;
   };
+  createdAt?: Date;
 }
 
 const TransactionSchema: Schema = new Schema(

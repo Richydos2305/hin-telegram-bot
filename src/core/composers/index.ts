@@ -2,7 +2,6 @@ import { Composer } from 'grammy';
 import { formatNumber, isLoggedIn, MyContext, trackMessage } from '../helpers';
 import { handleStart } from '../command/start';
 import { handleAdmin } from '../command/admin';
-import { handleRegister } from '../command/register';
 import { handleLogin } from '../command/login';
 import { handleDeposit } from '../command/deposit';
 import { handleWithdrawal } from '../command/withdraw';
@@ -16,7 +15,6 @@ const composer = new Composer<MyContext>();
 const messageIds: number[] = [];
 
 composer.command('admin', handleAdmin);
-composer.command('register', handleRegister);
 composer.command('login', handleLogin);
 composer.command('deposit', handleDeposit);
 composer.command('withdraw', handleWithdrawal);
@@ -59,7 +57,7 @@ composer.on('callback_query', async (ctx) => {
       if (transactions.length > 0) {
         for (const transaction of transactions) {
           const user = await Users.findById(transaction.user_id).select('username chat_id');
-          result.push(`${user?.username} - ${formatNumber(transaction.amount)} - ${transaction.type}`);
+          result.push(`${user?.username} - \t  ${formatNumber(transaction.amount)} - ${transaction.type}`);
           modifiedTransactions.push({ user, transaction });
         }
 
@@ -82,11 +80,12 @@ composer.on('callback_query', async (ctx) => {
   } else if (isLoggedIn(token)) {
     const callbackData = ctx.callbackQuery.data;
     if (callbackData === 'check_performance') {
-      let reply = await ctx.reply('Performance Summary');
-      messageIds.push(reply.message_id);
-
+      let reply;
       const quarter = await Quarters.find({ user_id: userData._id });
-      if (quarter) {
+
+      if (quarter.length > 0) {
+        let reply = await ctx.reply('Performance Summary');
+        messageIds.push(reply.message_id);
         for (let i = 0; i < quarter.length; i++) {
           reply = await ctx.reply(
             `📊 <b>Investment Summary for Q${quarter[i].quarter} in ${quarter[i].year}</b>
@@ -103,6 +102,9 @@ composer.on('callback_query', async (ctx) => {
           );
           messageIds.push(reply.message_id);
         }
+      } else {
+        reply = await ctx.reply('No Investment Record Yet 😔');
+        messageIds.push(reply.message_id);
       }
     } else if (callbackData === 'recent_quarter') {
       const quarter = await Quarters.findOne({ user_id: userData._id }).limit(1).sort({ updatedAt: -1 });
@@ -122,6 +124,9 @@ composer.on('callback_query', async (ctx) => {
           }
         );
         messageIds.push(reply.message_id);
+      } else {
+        const reply = await ctx.reply('This is your first quarter with us 😗');
+        messageIds.push(reply.message_id);
       }
     } else if (callbackData === 'investment_status') {
       const account = await Accounts.findOne({ user_id: userData._id });
@@ -130,7 +135,6 @@ composer.on('callback_query', async (ctx) => {
         type: TransactionType.WITHDRAWAL,
         status: TransactionStatus.APPROVED
       });
-      console.log(withdrawals);
 
       if (account) {
         if (withdrawals.length > 0) {
@@ -144,7 +148,7 @@ composer.on('callback_query', async (ctx) => {
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
     📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
     📊 You have withdrawn a total of: <code>${formatNumber(totalWithdrawals)}</code>
-    \ud83d\udc4d Your investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!`,
+    \ud83d\udc4d Your current investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!`,
             {
               parse_mode: 'HTML'
             }
@@ -163,6 +167,37 @@ composer.on('callback_query', async (ctx) => {
           );
           messageIds.push(reply.message_id);
         }
+      }
+    } else if (callbackData === 'transaction_history') {
+      const transactions = await Transactions.find({
+        user_id: userData._id,
+        status: { $in: [TransactionStatus.APPROVED, TransactionStatus.PENDING] }
+      });
+      const result = ['No. \t\t Amount \t\t\t\t     Type \t\t\t\t    Status \t\t\t\t  Date \n'];
+      const transactionHistory = [];
+
+      if (transactions.length > 0) {
+        let count = 0;
+        for (const transaction of transactions) {
+          count += 1;
+          const statusEmote = transaction.status === TransactionStatus.APPROVED ? '✅' : '⏳';
+          const transactionTypeAbbr = transaction.type === TransactionType.DEPOSIT ? 'D' : 'W';
+          const newDate = new Date(transaction.createdAt as Date).toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' });
+          result.push(
+            `${count}. \t\t ${formatNumber(transaction.amount)} \t\t       ${transactionTypeAbbr} \t\t           ${statusEmote} \t\t       ${newDate}`
+          );
+          transactionHistory.push({ count, transaction });
+        }
+
+        let reply = await ctx.reply(result.join('\n'));
+        messageIds.push(reply.message_id);
+        reply = await ctx.reply('Input a number to access the transaction receipt');
+        messageIds.push(reply.message_id);
+        ctx.session.transactionHistory = transactionHistory;
+        ctx.session.route = 'userTransactionHistory';
+      } else {
+        const reply = await ctx.reply('No Transactions with us');
+        messageIds.push(reply.message_id);
       }
     }
   } else {
