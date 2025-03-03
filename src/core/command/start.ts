@@ -13,7 +13,9 @@ export const handleStart = async (ctx: CommandContext<MyContext>): Promise<void>
 💸 Make deposits or withdrawals effortlessly.
 📈 Track the performance of the most recent quarter.
 
-Click the menu button below to explore all features or start with /login to access your account 📚.`,
+Click the menu button below to explore all features or start with /login to access your account 📚.
+
+You can clear the chat manually by clicking the three dots in the top right corner and selecting "Clear Chat".`,
     { parse_mode: 'HTML' }
   );
   messageIds.push(reply.message_id);
