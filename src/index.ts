@@ -37,6 +37,12 @@ const port = settings.port || 5000;
 app.get('/status', (req, res) => {
   res.status(200).send('Hello, World!');
 });
+
 app.listen(port, () => {
   console.log(`Server running on Port ${port}`);
+});
+
+bot.catch((err) => {
+  console.error(err);
+  // You can also send an error message to the user here
 });

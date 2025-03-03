@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { Router } from '@grammyjs/router';
-import { formatNumber, getAccessToken, MyContext, trackMessage } from '../helpers';
+import { formatNumber, getAccessToken, handleStop, MyContext, trackMessage } from '../helpers';
 import { FileType, TransactionStatus } from '../interfaces';
 import { Users } from '../models/users';
 import { questions } from '../command/login';
@@ -143,6 +143,8 @@ router.route('userTransactionHistory', async (ctx) => {
       }
 
       ctx.session.route = '';
+    } else if (message.text === '/stop') {
+      await handleStop(ctx, messageIds);
     } else {
       const reply = await ctx.reply(`**Please Input a Number**`);
       messageIds.push(reply.message_id);

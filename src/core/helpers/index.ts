@@ -14,6 +14,12 @@ export function handleError(res: Response, statusCode: number, message: string):
   res.status(statusCode).send({ message });
 }
 
+export const handleStop = async (ctx: MyContext, messageIds: number[]): Promise<void> => {
+  ctx.session.route = '';
+  const reply = await ctx.reply(`<b>Request stopped!</b> 🤖\nClick the menu button below to explore all features 📚.`, { parse_mode: 'HTML' });
+  messageIds.push(reply.message_id);
+};
+
 export const trackMessage = (userId: number, messageIds: number[]): void => {
   if (!messageStore.has(userId)) {
     messageStore.set(userId, []);

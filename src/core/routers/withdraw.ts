@@ -1,5 +1,5 @@
 import { Router } from '@grammyjs/router';
-import { formatNumber, MyContext, trackMessage } from '../helpers';
+import { formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
 import { settings } from '../config/application';
 import { TransactionType } from '../interfaces';
 import { Accounts } from '../models/accounts';
@@ -47,6 +47,8 @@ router.route('withdrawalRequestInProgress', async (ctx) => {
         const reply = await ctx.reply(`**Insufficient Funds** 🚫\n\nYou don't have enough balance to complete this transaction.`);
         messageIds.push(reply.message_id);
       }
+    } else if (message.text === '/stop') {
+      await handleStop(ctx, messageIds);
     } else {
       const reply = await ctx.reply('**Invalid Amount** 📝\n\nPlease enter a valid amount to proceed.');
       messageIds.push(reply.message_id);
