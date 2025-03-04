@@ -147,8 +147,7 @@ composer.on('callback_query', async (ctx) => {
 
     \ud83d\udcb0 Initial Investment: <code>${formatNumber(account.initial_balance)}</code>
     📈 Current Balance: <code>${formatNumber(account.current_balance)}</code>
-    📊 You have withdrawn a total of: <code>${formatNumber(totalWithdrawals)}</code>
-    \ud83d\udc4d Your current investment has grown by ${formatNumber(account.current_balance - account.initial_balance)}!`,
+    📊 You have withdrawn a total of: <code>${formatNumber(totalWithdrawals)}</code>!`,
             {
               parse_mode: 'HTML'
             }

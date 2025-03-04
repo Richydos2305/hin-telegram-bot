@@ -26,6 +26,7 @@ router.route('withdrawalRequestInProgress', async (ctx) => {
           type: TransactionType.WITHDRAWAL,
           amount: Number(amount)
         });
+        ctx.session.route = '';
         let reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
         messageIds.push(reply.message_id);
 
@@ -42,7 +43,6 @@ router.route('withdrawalRequestInProgress', async (ctx) => {
         Kindly log in as an admin to confirm this.`
         );
         trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
-        ctx.session.route = '';
       } else {
         const reply = await ctx.reply(`**Insufficient Funds** 🚫\n\nYou don't have enough balance to complete this transaction.`);
         messageIds.push(reply.message_id);

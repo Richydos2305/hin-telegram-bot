@@ -70,6 +70,8 @@ router.route('depositRequestConfirmation', async (ctx) => {
           receipt
         });
         if (transactionRecord) {
+          ctx.session.route = '';
+          ctx.session.amount = 0;
           let reply = await ctx.reply(
             `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
             { parse_mode: 'HTML' }
@@ -89,10 +91,10 @@ router.route('depositRequestConfirmation', async (ctx) => {
             Kindly log in as an admin to confirm this.`
           );
           trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
-          ctx.session.route = '';
-          ctx.session.amount = 0;
         }
       }
+    } else if (message.text === '/stop') {
+      await handleStop(ctx, messageIds);
     } else {
       const reply = await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.`);
       messageIds.push(reply.message_id);
