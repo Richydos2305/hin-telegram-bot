@@ -96,24 +96,29 @@ router.route('viewUserTransaction', async (ctx) => {
 
   if (ctx.session.transactions.length > 0) {
     if (message) {
-      const username = message.text;
-      const userTransaction = transactions.find((obj) => obj.user.username === username);
-      if (userTransaction && userTransaction.transaction.type === TransactionType.DEPOSIT) {
-        if (userTransaction.transaction.receipt.type === FileType.DOCUMENT) {
-          const reply = await ctx.replyWithDocument(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
-          messageIds.push(reply.message_id);
-        } else if (userTransaction.transaction.receipt.type === FileType.PHOTO) {
-          const reply = await ctx.replyWithPhoto(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
-          messageIds.push(reply.message_id);
+      const firstName = message.text;
+      const userTransaction = transactions.find((obj) => obj.user.first_name === firstName);
+      if (userTransaction) {
+        if (userTransaction.transaction.type === TransactionType.DEPOSIT) {
+          if (userTransaction.transaction.receipt.type === FileType.DOCUMENT) {
+            const reply = await ctx.replyWithDocument(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
+            messageIds.push(reply.message_id);
+          } else if (userTransaction.transaction.receipt.type === FileType.PHOTO) {
+            const reply = await ctx.replyWithPhoto(userTransaction.transaction.receipt.file, { caption: 'Here is the receipt' });
+            messageIds.push(reply.message_id);
+          }
         }
+        const reply = await ctx.reply(pickTransactionStatus, {
+          parse_mode: 'HTML',
+          reply_markup: transactionConfirmationkeyboard
+        });
+        messageIds.push(reply.message_id);
+        ctx.session.currentTransaction = userTransaction;
+        ctx.session.route = 'transactionRequestInProgress';
+      } else {
+        const reply = await ctx.reply('A user with that name does not exist');
+        messageIds.push(reply.message_id);
       }
-      const reply = await ctx.reply(pickTransactionStatus, {
-        parse_mode: 'HTML',
-        reply_markup: transactionConfirmationkeyboard
-      });
-      messageIds.push(reply.message_id);
-      ctx.session.currentTransaction = userTransaction;
-      ctx.session.route = 'transactionRequestInProgress';
     }
   }
   if (userId) trackMessage(userId as number, messageIds);
@@ -209,7 +214,7 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
 
       if (account) {
         account.current_balance -= currentTransaction.transaction.amount;
-        account.initial_balance -= currentTransaction.transaction.amount;
+        account.initial_balance = account.initial_balance <= 0 ? 0 : account.initial_balance - currentTransaction.transaction.amount;
         await account.save();
       }
       let reply = await ctx.reply('Okay. Will let the user know it has been approved');
