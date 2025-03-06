@@ -44,5 +44,4 @@ app.listen(port, () => {
 
 bot.catch((err) => {
   console.error(err);
-  // You can also send an error message to the user here
 });

@@ -31,6 +31,7 @@ router.route('securityQuestion', async (ctx) => {
         ctx.session.route = 'securityAnswer';
       } else {
         const reply = await ctx.reply('**Invalid Security Question** 📝\n\nPlease select a valid security question using the /login command.');
+        ctx.session.route = '';
         messageIds.push(reply.message_id);
       }
     }
@@ -129,19 +130,23 @@ router.route('userTransactionHistory', async (ctx) => {
         const { transaction: currentTransaction } = transaction;
         const statusEmote = currentTransaction.status === TransactionStatus.APPROVED ? '✅' : '⏳';
         const newDate = new Date(currentTransaction.createdAt as Date).toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' });
-        if (currentTransaction.receipt.type === FileType.DOCUMENT) {
-          const reply = await ctx.replyWithDocument(currentTransaction.receipt.file, {
-            caption: `${formatNumber(currentTransaction.amount)} -> ${newDate} -> ${statusEmote}`
-          });
-          messageIds.push(reply.message_id);
-        } else if (currentTransaction.receipt.type === FileType.PHOTO) {
-          const reply = await ctx.replyWithPhoto(currentTransaction.receipt.file, {
-            caption: `${formatNumber(currentTransaction.amount)} -> ${newDate} -> ${statusEmote}`
-          });
+        if (currentTransaction.receipt) {
+          if (currentTransaction.receipt.type === FileType.DOCUMENT) {
+            const reply = await ctx.replyWithDocument(currentTransaction.receipt.file, {
+              caption: `${formatNumber(currentTransaction.amount)} -> ${newDate} -> ${statusEmote}`
+            });
+            messageIds.push(reply.message_id);
+          } else if (currentTransaction.receipt.type === FileType.PHOTO) {
+            const reply = await ctx.replyWithPhoto(currentTransaction.receipt.file, {
+              caption: `${formatNumber(currentTransaction.amount)} -> ${newDate} -> ${statusEmote}`
+            });
+            messageIds.push(reply.message_id);
+          }
+        } else {
+          const reply = await ctx.reply(`No receipt for this transaction`);
           messageIds.push(reply.message_id);
         }
       }
-
       ctx.session.route = '';
     } else if (message.text === '/stop') {
       await handleStop(ctx, messageIds);
