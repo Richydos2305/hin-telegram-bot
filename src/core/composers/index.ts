@@ -211,7 +211,7 @@ composer.use(async (ctx) => {
   const userId = ctx.message?.chat.id;
   messageIds.push(ctx.message?.message_id as number);
   if (ctx.session) {
-    const reply = await ctx.reply('**Not a recognised input** \nIf you need help, do /start.');
+    const reply = await ctx.reply('<b>Not a recognised input</b> \nIf you need help, do /start.', { parse_mode: 'HTML' });
     messageIds.push(reply.message_id);
   }
   if (userId) trackMessage(userId as number, messageIds);

@@ -18,7 +18,7 @@ router.route('depositRequestInProgress', async (ctx) => {
     const amount = message.text;
     if (amount && !isNaN(Number(amount))) {
       if (Number(amount) < 30000) {
-        const reply = await ctx.reply(`**Invalid Amount** 📝\n\nMinimum deposit amount is  ₦30,000.`, { parse_mode: 'HTML' });
+        const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum deposit amount is  ₦30,000.`, { parse_mode: 'HTML' });
         messageIds.push(reply.message_id);
       } else {
         const reply = await ctx.reply(
@@ -32,7 +32,7 @@ router.route('depositRequestInProgress', async (ctx) => {
     } else if (message.text === '/stop') {
       await handleStop(ctx, messageIds);
     } else {
-      const reply = await ctx.reply('**Invalid Amount** 📝\n\nPlease enter a valid amount to proceed.');
+      const reply = await ctx.reply('<b>Invalid Amount</b> 📝\n\nPlease enter a valid amount to proceed.', { parse_mode: 'HTML' });
       messageIds.push(reply.message_id);
     }
   }
@@ -79,15 +79,13 @@ router.route('depositRequestConfirmation', async (ctx) => {
 
           reply = await bot.api.sendMessage(
             settings.adminIds.chatId1,
-            `${userData.username} just made a deposit request of ${formatNumber(ctx.session.amount)}.
-            Kindly log in as an admin to confirm this.`
+            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)}. \nKindly log in as an admin to confirm this.`
           );
           trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
 
           reply = await bot.api.sendMessage(
             settings.adminIds.chatId2,
-            `${userData.username} just made a deposit request of ${formatNumber(ctx.session.amount)}.
-            Kindly log in as an admin to confirm this.`
+            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)}. \nKindly log in as an admin to confirm this.`
           );
           trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
           ctx.session.amount = 0;
