@@ -42,3 +42,23 @@ export enum SessionState {
   LOGIN_IN_PROGRESS = 'loginInProgress',
   ADMIN_LOGIN_IN_PROGRESS = 'adminLoginInProgress'
 }
+
+export enum QuarterBeginningMonths {
+  Q1 = 'January',
+  Q2 = 'April',
+  Q3 = 'July',
+  Q4 = 'October'
+}
+
+export const quarterStartMonths = new Map<string, number>([
+  ['January', 1],
+  ['April', 4],
+  ['July', 7],
+  ['October', 10]
+]);
+
+export const quarterMap = new Map<number, QuarterBeginningMonths>([
+  [1, QuarterBeginningMonths.Q2],
+  [2, QuarterBeginningMonths.Q3],
+  [3, QuarterBeginningMonths.Q4]
+]);

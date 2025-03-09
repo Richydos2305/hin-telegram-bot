@@ -7,18 +7,13 @@ import { SessionFlavor, Context } from 'grammy';
 import { Accounts } from '../models/accounts';
 import { Quarters } from '../models/quarters';
 import { bot, messageStore } from '../..';
+import { QuarterBeginningMonths, quarterMap, quarterStartMonths } from '../interfaces';
 
 const messageIds: number[] = [];
 
 export function handleError(res: Response, statusCode: number, message: string): void {
   res.status(statusCode).send({ message });
 }
-
-export const handleStop = async (ctx: MyContext, messageIds: number[]): Promise<void> => {
-  ctx.session.route = '';
-  const reply = await ctx.reply(`<b>Request stopped!</b> 🤖\nClick the menu button below to explore all features 📚.`, { parse_mode: 'HTML' });
-  messageIds.push(reply.message_id);
-};
 
 export const trackMessage = (userId: number, messageIds: number[]): void => {
   if (!messageStore.has(userId)) {
@@ -128,6 +123,61 @@ function getRandomInt(min: number, max: number): number {
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+export const handleStop = async (ctx: MyContext, messageIds: number[]): Promise<void> => {
+  ctx.session.route = '';
+  const reply = await ctx.reply(`<b>Request stopped!</b> 🤖\nClick the menu button below to explore all features 📚.`, { parse_mode: 'HTML' });
+  messageIds.push(reply.message_id);
+};
+
+export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]): Promise<void> => {
+  const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
+
+  if (!lastQuarterEntry) {
+    console.log('No quarter data found.');
+    return;
+  }
+
+  const { quarter, year } = lastQuarterEntry;
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  let nextYear = year;
+  let nextStartMonth = '';
+
+  if (quarter === 4) {
+    if (currentYear > year) {
+      nextStartMonth = QuarterBeginningMonths.Q2;
+    } else {
+      nextStartMonth = QuarterBeginningMonths.Q1;
+    }
+    nextYear = year + 1;
+  } else {
+    nextStartMonth = quarterMap.get(quarter) || QuarterBeginningMonths.Q2;
+
+    const monthNumber = quarterStartMonths.get(nextStartMonth) || 1;
+
+    if (currentMonth >= monthNumber) {
+      nextStartMonth =
+        {
+          April: QuarterBeginningMonths.Q3,
+          July: QuarterBeginningMonths.Q4,
+          October: QuarterBeginningMonths.Q1
+        }[nextStartMonth] || QuarterBeginningMonths.Q2;
+
+      if (nextStartMonth === QuarterBeginningMonths.Q1) {
+        nextYear += 1;
+      }
+    }
+  }
+
+  const reply = await ctx.reply(
+    `<b>Note</b>❗\n\n If this request is approved it will take place from <b>${nextStartMonth}</b> ${nextYear}.\n\n Use /stop if you don't wish to proceed.`,
+    { parse_mode: 'HTML' }
+  );
+
+  messageIds.push(reply.message_id);
+};
 
 export function formatNumber(amount: number): string {
   const formattedNumber: string = new Intl.NumberFormat('en-NG', {
