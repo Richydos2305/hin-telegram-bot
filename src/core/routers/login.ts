@@ -5,6 +5,8 @@ import { FileType, TransactionStatus } from '../interfaces';
 import { Users } from '../models/users';
 import { questions } from '../command/login';
 import { Accounts } from '../models/accounts';
+import { bot } from '../..';
+import { settings } from '../config/application';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -68,11 +70,17 @@ router.route('securityAnswer', async (ctx) => {
     );
 
     if (updatedUser) {
-      const reply = await ctx.reply(
+      let reply = await ctx.reply(
         `<b>Onboarding Successful!</b> 🎉\n\nYour details have been successfully documented. You can now use the /login command to access your account.`,
         { parse_mode: 'HTML' }
       );
       messageIds.push(reply.message_id);
+      reply = await bot.api.sendMessage(settings.adminIds.chatId1, `${updatedUser.first_name} just finished the Onboarding Process 🎉`);
+      trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+
+      reply = await bot.api.sendMessage(settings.adminIds.chatId2, `${updatedUser.first_name} just finished the Onboarding Process 🎉`);
+      trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+
       await Accounts.create({ user_id: updatedUser._id });
     }
     ctx.session.route = '';
