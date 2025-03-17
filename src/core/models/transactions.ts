@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { TransactionType, TransactionStatus } from '../interfaces/models';
+import { TransactionType, TransactionStatus, FileType } from '../interfaces';
 
 export interface ITransactions extends Document {
   user_id: Schema.Types.ObjectId;
@@ -7,6 +7,11 @@ export interface ITransactions extends Document {
   type: TransactionType;
   amount: number;
   status: TransactionStatus;
+  receipt: {
+    file: string;
+    type: FileType;
+  };
+  createdAt?: Date;
 }
 
 const TransactionSchema: Schema = new Schema(
@@ -16,9 +21,9 @@ const TransactionSchema: Schema = new Schema(
       ref: 'Users',
       required: true
     },
-    quarter_id: {
+    account_id: {
       type: Schema.Types.ObjectId,
-      ref: 'Quarters',
+      ref: 'Accounts',
       required: true
     },
     type: {
@@ -28,13 +33,21 @@ const TransactionSchema: Schema = new Schema(
     },
     status: {
       type: String,
-      required: true,
-      enum: Object.values(TransactionStatus)
+      enum: Object.values(TransactionStatus),
+      default: TransactionStatus.PENDING
     },
     amount: {
       type: Number,
-      required: true,
-      maxlength: 225
+      required: true
+    },
+    receipt: {
+      file: {
+        type: String
+      },
+      type: {
+        type: String,
+        enum: Object.values(FileType)
+      }
     }
   },
   {

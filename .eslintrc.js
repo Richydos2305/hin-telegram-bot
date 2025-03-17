@@ -29,7 +29,7 @@ module.exports = {
       }
     ],
     'arrow-return-shorthand': 0,
-    'max-len': ['error', { code: 150 }],
+    'max-len': ['error', { code: 300 }],
     semi: ['error', 'always'],
     indent: ['error', 2],
     '@typescript-eslint/no-explicit-any': 0,
