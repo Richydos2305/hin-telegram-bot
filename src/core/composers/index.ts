@@ -34,7 +34,8 @@ composer.on('callback_query', async (ctx) => {
       let reply = await ctx.reply(`Year automatically set to ${currentYear}.`);
       messageIds.push(reply.message_id);
 
-      const lastQuarterEntry = await Quarters.findOne().limit(1).sort({ createdAt: -1 });
+      const lastQuarterEntry = (await Quarters.find({ year: currentYear }).limit(1).sort({ quarter: -1 }))[0];
+
       if (lastQuarterEntry && lastQuarterEntry.quarter < 4) {
         ctx.session.quarter = lastQuarterEntry.quarter + 1;
       } else if (lastQuarterEntry && lastQuarterEntry.quarter === 4) {
