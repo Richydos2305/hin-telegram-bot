@@ -16,12 +16,6 @@ const AccountSchema = new Schema(
     initial_balance: {
       type: Number,
       default: 0
-    },
-
-    roi: {
-      type: Number,
-      default: 0,
-      min: -1
     }
   },
   {
