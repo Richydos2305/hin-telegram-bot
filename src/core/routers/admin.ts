@@ -251,6 +251,7 @@ router.route('broadcast', async (ctx) => {
         entities: message.entities
       });
     }
+    await ctx.reply('Broadcast Message Sent Successfully');
   }
   ctx.session.route = '';
 });
