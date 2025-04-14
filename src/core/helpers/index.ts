@@ -240,7 +240,7 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
           account_id: account._id,
           year: ctx.session.year,
           quarter: ctx.session.quarter,
-          roi: roi / 100,
+          roi: parseFloat((roi / 100).toFixed(4)),
           commission: ctx.session.commissions,
           starting_capital: parseFloat(startingCapital.toFixed(2)),
           ending_capital: parseFloat(endingCapital.toFixed(2))
@@ -248,9 +248,7 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
 
         if (quarterRecord) {
           account.current_balance = quarterRecord.ending_capital;
-          account.roi = parseFloat(((account.current_balance - account.initial_balance) / account.initial_balance).toFixed(2));
           await account.save();
-
           let reply = await ctx.reply(`Successful Entry for ${user.username}`);
           messageIds.push(reply.message_id);
           reply = await bot.api.sendMessage(
