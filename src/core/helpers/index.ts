@@ -240,7 +240,7 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
           account_id: account._id,
           year: ctx.session.year,
           quarter: ctx.session.quarter,
-          roi: roi / 100,
+          roi: parseFloat((roi / 100).toFixed(4)),
           commission: ctx.session.commissions,
           starting_capital: parseFloat(startingCapital.toFixed(2)),
           ending_capital: parseFloat(endingCapital.toFixed(2))
