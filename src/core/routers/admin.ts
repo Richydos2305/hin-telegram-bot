@@ -213,8 +213,10 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
       const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
 
       if (account) {
-        account.current_balance -= currentTransaction.transaction.amount;
+        account.current_balance = parseFloat((account.current_balance - currentTransaction.transaction.amount).toFixed(2));
+
         account.initial_balance = account.initial_balance <= 0 ? 0 : account.initial_balance - currentTransaction.transaction.amount;
+        if (account.initial_balance < 0) account.initial_balance = 0;
         await account.save();
       }
       let reply = await ctx.reply('Okay. Will let the user know it has been approved');
@@ -251,6 +253,7 @@ router.route('broadcast', async (ctx) => {
         entities: message.entities
       });
     }
+    await ctx.reply('Broadcast Message Sent Successfully');
   }
   ctx.session.route = '';
 });
