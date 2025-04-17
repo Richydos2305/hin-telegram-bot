@@ -4,7 +4,7 @@ import { settings } from '../config/application';
 import { FileType, TransactionType } from '../interfaces';
 import { Accounts } from '../models/accounts';
 import { Transactions } from '../models/transactions';
-import { bot } from '../..';
+import { bot } from '../../bot';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];

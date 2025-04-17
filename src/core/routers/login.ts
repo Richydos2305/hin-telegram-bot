@@ -5,7 +5,7 @@ import { FileType, TransactionStatus } from '../interfaces';
 import { Users } from '../models/users';
 import { questions } from '../command/login';
 import { Accounts } from '../models/accounts';
-import { bot } from '../..';
+import { bot } from '../../bot';
 import { settings } from '../config/application';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);

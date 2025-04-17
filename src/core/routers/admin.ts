@@ -5,7 +5,7 @@ import { pickTransactionStatus, transactionConfirmationkeyboard } from '../comma
 import { Accounts } from '../models/accounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
-import { bot } from '../..';
+import { bot } from '../../bot';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];

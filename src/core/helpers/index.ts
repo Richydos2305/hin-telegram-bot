@@ -6,7 +6,7 @@ import { Types } from 'mongoose';
 import { SessionFlavor, Context } from 'grammy';
 import { Accounts } from '../models/accounts';
 import { Quarters } from '../models/quarters';
-import { bot, messageStore } from '../..';
+import { bot, messageStore } from '../../bot';
 import { QuarterBeginningMonths, quarterMap, quarterStartMonths } from '../interfaces';
 
 const messageIds: number[] = [];
