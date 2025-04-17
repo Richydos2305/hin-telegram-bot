@@ -2,7 +2,7 @@ import { Router } from '@grammyjs/router';
 import { formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
 import { settings } from '../config/application';
 import { FileType, TransactionType } from '../interfaces';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Transactions } from '../models/transactions';
 import { bot } from '../..';
 
@@ -60,7 +60,7 @@ router.route('depositRequestConfirmation', async (ctx) => {
       };
     }
     if (receipt) {
-      const account = await Accounts.findOne({ user_id: userData._id });
+      const account = await HighRiskAccounts.findOne({ user_id: userData._id });
       if (account) {
         const transactionRecord = await Transactions.create({
           user_id: userData._id,

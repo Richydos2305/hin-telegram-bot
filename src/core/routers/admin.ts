@@ -2,7 +2,7 @@ import { Router } from '@grammyjs/router';
 import { formatNumber, makeAnEntry, MyContext, trackMessage } from '../helpers';
 import { FileType, TransactionStatus, TransactionType } from '../interfaces';
 import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
 import { bot } from '../..';
@@ -132,7 +132,7 @@ router.route('transactionRequestInProgress', async (ctx) => {
   messageIds.push(message?.message_id as number);
 
   if (message) {
-    const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
+    const account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     const user = await Users.findById(currentTransaction.transaction.user_id);
     console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);
 
@@ -210,7 +210,7 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
         status: TransactionStatus.APPROVED,
         receipt
       });
-      const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
+      const account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
 
       if (account) {
         account.current_balance = parseFloat((account.current_balance - currentTransaction.transaction.amount).toFixed(2));
