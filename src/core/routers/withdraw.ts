@@ -2,7 +2,7 @@ import { Router } from '@grammyjs/router';
 import { formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
 import { settings } from '../config/application';
 import { TransactionType } from '../interfaces';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Transactions } from '../models/transactions';
 import { bot } from '../..';
 
@@ -22,7 +22,7 @@ router.route('withdrawalRequestInProgress', async (ctx) => {
         const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum withdrawal amount is  ₦10,000.`, { parse_mode: 'HTML' });
         messageIds.push(reply.message_id);
       } else {
-        const account = await Accounts.findOne({ user_id: userData._id });
+        const account = await HighRiskAccounts.findOne({ user_id: userData._id });
         if (account && Number(amount) <= account.current_balance) {
           await Transactions.create({
             user_id: userData._id,

@@ -9,7 +9,7 @@ import { TransactionStatus, TransactionType } from '../interfaces';
 import { Quarters } from '../models/quarters';
 import { ITransactions, Transactions } from '../models/transactions';
 import { Users } from '../models/users';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 
 const composer = new Composer<MyContext>();
 const messageIds: number[] = [];
@@ -130,7 +130,7 @@ composer.on('callback_query', async (ctx) => {
         messageIds.push(reply.message_id);
       }
     } else if (callbackData === 'investment_status') {
-      const account = await Accounts.findOne({ user_id: userData._id });
+      const account = await HighRiskAccounts.findOne({ user_id: userData._id });
       const withdrawals: ITransactions[] = await Transactions.find({
         user_id: ctx.session.userData._id,
         type: TransactionType.WITHDRAWAL,

@@ -1,6 +1,6 @@
 import { Schema, model } from 'mongoose';
 
-const AccountSchema = new Schema(
+const HighRiskAccountSchema = new Schema(
   {
     user_id: {
       type: Schema.Types.ObjectId,
@@ -20,8 +20,8 @@ const AccountSchema = new Schema(
   },
   {
     timestamps: true,
-    collection: 'accounts'
+    collection: 'highRiskAccounts'
   }
 );
 
-export const Accounts = model('Account', AccountSchema);
+export const HighRiskAccounts = model('HighRiskAccount', HighRiskAccountSchema);

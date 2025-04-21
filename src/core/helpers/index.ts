@@ -4,7 +4,7 @@ import { sign, verify } from 'jsonwebtoken';
 import { Users } from '../models/users';
 import { Types } from 'mongoose';
 import { SessionFlavor, Context } from 'grammy';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Quarters } from '../models/quarters';
 import { bot, messageStore } from '../..';
 import { QuarterBeginningMonths, quarterMap, quarterStartMonths } from '../interfaces';
@@ -222,7 +222,7 @@ export const makeAnEntry = async (ctx: any): Promise<void> => {
 
     const users = await Users.find();
     for (const user of users) {
-      const account = await Accounts.findOne({ user_id: user._id });
+      const account = await HighRiskAccounts.findOne({ user_id: user._id });
       let roi = ctx.session.roi;
       if (account && account.current_balance > 0) {
         startingCapital = account.current_balance;
