@@ -19,6 +19,12 @@ export enum TransactionStatus {
   DENIED = 'Denied'
 }
 
+export enum UserPlan {
+  HIGH_RISK = 'High',
+  MEDIUM_RISK = 'Medium',
+  LOW_RISK = 'Low'
+}
+
 export interface User {
   username: string;
   first_name: string;

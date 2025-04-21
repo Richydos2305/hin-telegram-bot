@@ -168,7 +168,13 @@ composer.on('callback_query', async (ctx) => {
           messageIds.push(reply.message_id);
         }
       }
-    } else if (callbackData === 'transaction_history') {
+    } 
+    // else if (callbackData === 'high_risk_deposit') {
+    //   const account = await Accounts.findOne({ user_id: userData._id });
+    //   if (account) {
+        
+    
+    else if (callbackData === 'transaction_history') {
       const transactions = await Transactions.find({
         user_id: userData._id,
         status: { $in: [TransactionStatus.APPROVED, TransactionStatus.PENDING] }

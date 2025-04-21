@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { TransactionType, TransactionStatus, FileType } from '../interfaces';
+import { TransactionType, TransactionStatus, FileType, UserPlan } from '../interfaces';
 
 export interface ITransactions extends Document {
   user_id: Schema.Types.ObjectId;
@@ -30,6 +30,11 @@ const TransactionSchema: Schema = new Schema(
       type: String,
       required: true,
       enum: Object.values(TransactionType)
+    },
+    plan: {
+      type: String,
+      required: true,
+      enum: Object.values(UserPlan)
     },
     status: {
       type: String,
