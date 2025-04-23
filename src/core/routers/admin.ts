@@ -6,6 +6,8 @@ import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
 import { bot } from '../..';
+import { LowRiskAccounts } from '../models/lowRiskAccounts';
+import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -132,9 +134,15 @@ router.route('transactionRequestInProgress', async (ctx) => {
   messageIds.push(message?.message_id as number);
 
   if (message) {
-    const account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    let account;
+    account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    if (!account) account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    if (!account) account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     const user = await Users.findById(currentTransaction.transaction.user_id);
     console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);
+    console.log(message.text === TransactionStatus.APPROVED);
+    console.log(message.text === TransactionStatus.DENIED);
+    console.log(account);
 
     if (message.text === TransactionStatus.APPROVED && account && currentTransaction.transaction.type === TransactionType.DEPOSIT) {
       account.current_balance += currentTransaction.transaction.amount;
