@@ -7,6 +7,7 @@ export interface ITransactions extends Document {
   type: TransactionType;
   amount: number;
   status: TransactionStatus;
+  plan: UserPlan;
   receipt: {
     file: string;
     type: FileType;
