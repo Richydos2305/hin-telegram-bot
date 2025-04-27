@@ -328,7 +328,7 @@ export async function calcForLowRisk(): Promise<void> {
 
   const clients = await LowRiskAccounts.find({ status: statusType.ACTIVE });
   for (const client of clients) {
-    const user = await Users.findOne({ user_id: client.user_id });
+    const user = await Users.findOne({ _id: client.user_id });
     const roi = 7.5;
     if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
       result = ROICalcForAdmin(roi, client.initial_balance);
