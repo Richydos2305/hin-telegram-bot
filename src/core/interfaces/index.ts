@@ -8,6 +8,13 @@ export enum TransactionType {
   DEPOSIT = 'Deposit',
   WITHDRAWAL = 'Withdrawal'
 }
+
+export enum statusType {
+  ACTIVE = 'active',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled'
+}
+
 export enum FileType {
   PHOTO = 'Photo',
   DOCUMENT = 'Document'

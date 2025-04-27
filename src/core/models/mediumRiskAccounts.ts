@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { statusType } from '../interfaces';
 
 const MediumRiskAccountSchema = new Schema(
   {
@@ -25,8 +26,8 @@ const MediumRiskAccountSchema = new Schema(
 
     status: {
       type: String,
-      enum: ['active', 'completed', 'cancelled'],
-      default: 'active'
+      enum: Object.values(statusType),
+      default: statusType.ACTIVE
     },
 
     start_date: {

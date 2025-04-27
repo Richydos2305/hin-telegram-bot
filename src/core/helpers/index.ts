@@ -5,9 +5,12 @@ import { Users } from '../models/users';
 import { Types } from 'mongoose';
 import { SessionFlavor, Context } from 'grammy';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
+import { HinBuffer } from '../models/buffer';
 import { Quarters } from '../models/quarters';
 import { bot, messageStore } from '../..';
-import { QuarterBeginningMonths, quarterMap, quarterStartMonths } from '../interfaces';
+import { QuarterBeginningMonths, quarterMap, quarterStartMonths, statusType } from '../interfaces';
+import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { LowRiskAccounts } from '../models/lowRiskAccounts';
 
 const messageIds: number[] = [];
 
@@ -212,66 +215,153 @@ export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number)
   return finalAmount;
 }
 
-export const makeAnEntry = async (ctx: any): Promise<void> => {
-  try {
-    const userId = ctx.message?.chat.id;
-    let startingCapital: number;
-    let endingCapital: number = 0;
-    let managementFee: number = 0;
-    let result: number | { finalAmount: number; managementFee: number; newROI: number };
+export async function messageAdmins(message: string): Promise<void> {
+  let reply = await bot.api.sendMessage(settings.adminIds.chatId1, message);
+  trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
 
-    const users = await Users.find();
-    for (const user of users) {
-      const account = await HighRiskAccounts.findOne({ user_id: user._id });
-      let roi = ctx.session.roi;
-      if (account && account.current_balance > 0) {
-        startingCapital = account.current_balance;
-        if (ctx.session.commissions === false) {
-          result = ROICalcForAdmin(roi, startingCapital);
-          endingCapital = result;
-        } else if (ctx.session.commissions === true) {
-          result = ROICalcForClient(user.username, roi, startingCapital);
-          managementFee += result.managementFee;
-          roi = result.newROI;
-          endingCapital = result.finalAmount;
-        }
-        const quarterRecord = await Quarters.create({
-          user_id: user._id,
-          account_id: account._id,
-          year: ctx.session.year,
-          quarter: ctx.session.quarter,
-          roi: parseFloat((roi / 100).toFixed(4)),
-          commission: ctx.session.commissions,
-          starting_capital: parseFloat(startingCapital.toFixed(2)),
-          ending_capital: parseFloat(endingCapital.toFixed(2))
-        });
+  reply = await bot.api.sendMessage(settings.adminIds.chatId2, message);
+  trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+}
 
-        if (quarterRecord) {
-          account.current_balance = quarterRecord.ending_capital;
-          await account.save();
-          let reply = await ctx.reply(`Successful Entry for ${user.username}`);
-          messageIds.push(reply.message_id);
-          reply = await bot.api.sendMessage(
-            user.chat_id,
-            `Quarterly Performance Update for Q${ctx.session.quarter}
+export async function calcForHighRisk(ctx: MyContext): Promise<void> {
+  let startingCapital: number;
+  let endingCapital: number = 0;
+  let managementFee: number = 0;
+  const { commissions, quarter, year } = ctx.session;
+  let result: number | { finalAmount: number; managementFee: number; newROI: number };
+
+  await messageAdmins('High Risk - Started');
+
+  const clients = await HighRiskAccounts.find();
+  for (const client of clients) {
+    const user = await Users.findOne({ _id: client.user_id });
+    let roi = ctx.session.roi;
+    if (user && client.current_balance > 0) {
+      startingCapital = client.current_balance;
+      if (commissions === false) {
+        result = ROICalcForAdmin(roi, startingCapital);
+        endingCapital = result;
+      } else if (commissions === true) {
+        result = ROICalcForClient(user.username, roi, startingCapital);
+        managementFee += result.managementFee;
+        roi = result.newROI;
+        endingCapital = result.finalAmount;
+      }
+      const quarterRecord = await Quarters.create({
+        user_id: user._id,
+        account_id: client._id,
+        year,
+        quarter,
+        roi: parseFloat((roi / 100).toFixed(4)),
+        commissions,
+        starting_capital: parseFloat(startingCapital.toFixed(2)),
+        ending_capital: parseFloat(endingCapital.toFixed(2))
+      });
+
+      if (quarterRecord) {
+        client.current_balance = quarterRecord.ending_capital;
+        await client.save();
+        let reply = await ctx.reply(`Successful Entry for ${user.username}`);
+        messageIds.push(reply.message_id);
+        reply = await bot.api.sendMessage(
+          user.chat_id,
+          `Quarterly Performance Update for Q${ctx.session.quarter}
 
 A whole 3 months has passed by and we are done for the quarter.
 Kindly log in and check the latest results.
 
 Once again, thank you for your patronage.
-            `
-          );
-          trackMessage(Number(user.chat_id), [reply.message_id]);
-        }
+          `
+        );
+        trackMessage(Number(user.chat_id), [reply.message_id]);
       }
     }
-    let reply = await ctx.reply('Check db to confirm. Done');
-    messageIds.push(reply.message_id);
-    reply = await bot.api.sendMessage(settings.adminIds.chatId1, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
-    trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+  }
+  await messageAdmins(`Management Fee for this quarter = ${formatNumber(managementFee)}.`);
 
-    reply = await bot.api.sendMessage(settings.adminIds.chatId2, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
-    trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+  if (managementFee > 0) {
+    const buffer = await HinBuffer.find();
+    buffer[0].amount += managementFee;
+    await buffer[0].save();
+    await messageAdmins('Buffer updated');
+  }
+
+  await messageAdmins('High Risk - Done');
+}
+
+export async function calcForMediumRisk(): Promise<void> {
+  let result: number;
+
+  await messageAdmins('Medium Risk - Started');
+
+  const clients = await MediumRiskAccounts.find({ status: statusType.ACTIVE });
+  for (const client of clients) {
+    const user = await Users.findOne({ _id: client.user_id });
+    const roi = 25;
+    if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
+      result = ROICalcForAdmin(roi, client.initial_balance);
+      client.current_balance += result - client.initial_balance;
+      client.quarters += 1;
+
+      if (client.quarters >= 4) {
+        client.status = statusType.COMPLETED;
+        client.completion_date = new Date();
+
+        await messageAdmins(`${user.first_name}'s Medium Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
+        const reply = await bot.api.sendMessage(
+          user.chat_id,
+          'Your Medium Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
+        );
+        trackMessage(Number(user.chat_id), [reply.message_id]);
+      }
+      await client.save();
+    }
+  }
+
+  await messageAdmins('Medium Risk - Done');
+}
+
+export async function calcForLowRisk(): Promise<void> {
+  let result: number;
+
+  await messageAdmins('Low Risk - Started');
+
+  const clients = await LowRiskAccounts.find({ status: statusType.ACTIVE });
+  for (const client of clients) {
+    const user = await Users.findOne({ user_id: client.user_id });
+    const roi = 7.5;
+    if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
+      result = ROICalcForAdmin(roi, client.initial_balance);
+      client.current_balance += result - client.initial_balance;
+      client.quarters += 1;
+
+      if (client.quarters >= 4) {
+        client.status = statusType.COMPLETED;
+        client.completion_date = new Date();
+
+        await messageAdmins(`${user.first_name}'s Low Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
+        const reply = await bot.api.sendMessage(
+          user.chat_id,
+          'Your Low Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
+        );
+        trackMessage(Number(user.chat_id), [reply.message_id]);
+      }
+      await client.save();
+    }
+  }
+
+  await messageAdmins('Low Risk - Done');
+}
+
+export const makeAnEntry = async (ctx: MyContext): Promise<void> => {
+  try {
+    const userId = ctx.message?.chat.id;
+    await calcForHighRisk(ctx);
+    await calcForMediumRisk();
+    await calcForLowRisk();
+
+    const reply = await ctx.reply('Check db to confirm. Done');
+    messageIds.push(reply.message_id);
 
     if (userId) trackMessage(userId as number, messageIds);
     messageIds.length = 0;
