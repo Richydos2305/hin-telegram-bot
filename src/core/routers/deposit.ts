@@ -1,7 +1,7 @@
 import { Router } from '@grammyjs/router';
-import { confirmDeposit, formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
+import { checkBuffer, confirmDeposit, formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
 import { settings } from '../config/application';
-import { FileType, TransactionType } from '../interfaces';
+import { FileType, TransactionType, UserPlan } from '../interfaces';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Transactions } from '../models/transactions';
 import { bot } from '../..';
@@ -51,6 +51,16 @@ router.route('depositRequestInProgress', async (ctx) => {
         const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum deposit amount is  ₦30,000.`, { parse_mode: 'HTML' });
         messageIds.push(reply.message_id);
       } else {
+        let bufferResponse = await checkBuffer(ctx, messageIds, Number(amount), ctx.session.userPlan as UserPlan);
+        if(bufferResponse === "false") {
+          await handleStop(ctx, messageIds);
+          return;
+        }
+        else if (bufferResponse === "Try again") {
+          ctx.session.route = 'depositRequestInProgress';
+          return;
+        }
+
         const reply = await ctx.reply(
           `<b>Confirm Deposit</b> 💸\n\nPlease make a transfer of ${formatNumber(Number(amount))} to the following account: \n0021919337 - Access Bank - Richard Dosunmu.\n\nAttach the receipt as your response to this message. 📝`,
           { parse_mode: 'HTML' }

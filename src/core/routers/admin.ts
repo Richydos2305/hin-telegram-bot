@@ -1,5 +1,5 @@
 import { Router } from '@grammyjs/router';
-import { formatNumber, makeAnEntry, MyContext, trackMessage } from '../helpers';
+import { formatNumber, makeAnEntry, MyContext, trackMessage, updateBufferDeposits, updateBufferWithdrawal } from '../helpers';
 import { FileType, TransactionStatus, TransactionType } from '../interfaces';
 import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
@@ -139,12 +139,10 @@ router.route('transactionRequestInProgress', async (ctx) => {
     if (!account) account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     if (!account) account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     const user = await Users.findById(currentTransaction.transaction.user_id);
-    console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);
-    console.log(message.text === TransactionStatus.APPROVED);
-    console.log(message.text === TransactionStatus.DENIED);
-    console.log(account);
-
+    console.log(`${currentTransaction.transaction.type} Request: ${message.text} Plan: ${currentTransaction.transaction.plan}.`);
+    
     if (message.text === TransactionStatus.APPROVED && account && currentTransaction.transaction.type === TransactionType.DEPOSIT) {
+      await updateBufferDeposits(ctx, messageIds, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
       account.current_balance += currentTransaction.transaction.amount;
       account.initial_balance += currentTransaction.transaction.amount;
       await account.save();
@@ -165,7 +163,7 @@ router.route('transactionRequestInProgress', async (ctx) => {
     } else if (message.text === TransactionStatus.APPROVED && account && currentTransaction.transaction.type === TransactionType.WITHDRAWAL) {
       const reply = await ctx.reply('Okay. Upload the Receipt as a response to this message and the user will be notified');
       messageIds.push(reply.message_id);
-      ctx.session.route = 'transactionRequestReceiptUpload';
+      await updateBufferWithdrawal(ctx, currentTransaction.transaction.amount);
     } else if (
       message.text === TransactionStatus.DENIED &&
       account &&

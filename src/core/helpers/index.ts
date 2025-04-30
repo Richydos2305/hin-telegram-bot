@@ -11,6 +11,7 @@ import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, Trans
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { HinBuffer } from '../models/buffer';
 
 const messageIds: number[] = [];
 
@@ -287,8 +288,9 @@ Once again, thank you for your patronage.
 
 export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any ): Promise<void> {
   const { message } = ctx;
-  //const { userData } = ctx.session;
   messageIds.push(ctx.message?.message_id as number);
+  console.log('Confirming deposit...');
+  console.log('User data:', userData);
 
   if (isLoggedIn(ctx.session.token)) {
     if (message) {
@@ -314,14 +316,14 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
         } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
           account = await MediumRiskAccounts.findOne({ user_id: userData._id });
           if (!account) {
-            account = await HighRiskAccounts.create({ user_id: userData._id });
+            account = await MediumRiskAccounts.create({ user_id: userData._id });
           }
         } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
           account = await LowRiskAccounts.findOne({ user_id: userData._id });
           if (!account) {
-            account = await HighRiskAccounts.create({ user_id: userData._id });
+            account = await LowRiskAccounts.create({ user_id: userData._id });
           }
-        }
+        } 
         if (account) {
           const transactionRecord = await Transactions.create({
             user_id: userData._id,
@@ -333,7 +335,6 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
           });
           console.log("Transaction record created", transactionRecord);
           if (transactionRecord) {
-            console.log("Transaction record found");
             ctx.session.route = '';
             let reply = await ctx.reply(
               `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
@@ -343,13 +344,13 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
 
             reply = await bot.api.sendMessage(
               settings.adminIds.chatId1,
-              `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
+              `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan} risk plan. \nKindly log in as an admin to confirm this.`
             );
             trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
 
             reply = await bot.api.sendMessage(
               settings.adminIds.chatId2,
-              `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
+              `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan} risk plan. \nKindly log in as an admin to confirm this.`
             );
             trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
             ctx.session.amount = 0;
@@ -450,6 +451,7 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
                 user_id: userData._id,
                 account_id: account._id,
                 type: TransactionType.WITHDRAWAL,
+                plan: ctx.session.userPlan,
                 amount: Number(amount)
               });
               ctx.session.route = '';
@@ -483,3 +485,61 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
       }
   }
 }
+
+export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<String | void> {
+  if(userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
+    const buffer = await HinBuffer.findOne();
+    if ((buffer?.amount ?? 0) * 2 == buffer?.amount_allocated) {
+      const reply = await ctx.reply('<b>No more deposits can be made at this time.</b> 🚫', {
+        parse_mode: 'HTML'
+      });
+      messageIds.push(reply.message_id);
+      return "false";
+    }
+
+    let availableAmount = ((buffer?.amount ?? 0) * 2) - (buffer?.amount_allocated ?? 0);
+    if(amount > availableAmount) {
+      availableAmount = availableAmount * 2;
+      const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount)}`, {
+        parse_mode: 'HTML'
+      });
+      messageIds.push(reply.message_id);
+      return "Try again";
+    }
+  }
+  else if(!userPlan) {
+    const reply = await ctx.reply('<b>Invalid Plan</b> 🚫\n\nPlease select a valid plan to proceed.', {
+      parse_mode: 'HTML'
+    });
+    messageIds.push(reply.message_id);
+    ctx.session.route = 'choosePlanForDeposit';
+  }
+  console.log('Buffer check passed');
+
+}
+
+export async function updateBufferDeposits(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<void> {
+  const buffer = await HinBuffer.findOne();
+  await checkBuffer(ctx, messageIds, amount, userPlan);
+  if (userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
+    if (buffer) {
+      buffer.amount_allocated += amount / 2;
+      await buffer.save();
+    }
+  }
+  const reply = await ctx.reply(`Buffer updated successfully.`, {
+    parse_mode: 'HTML'
+  });
+  messageIds.push(reply.message_id);
+}
+
+
+export async function updateBufferWithdrawal(ctx: MyContext, amount: number): Promise<void> {
+  const buffer = await HinBuffer.findOne();
+  if (buffer) {
+      buffer.amount_allocated -= amount/2;
+      await buffer.save();
+      console.log(`Buffer updated successfully. removed ${amount} from allocated amount.`);
+    }
+    ctx.session.route = 'transactionRequestReceiptUpload';
+  }
