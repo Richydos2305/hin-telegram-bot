@@ -1,5 +1,5 @@
 import { Composer } from 'grammy';
-import { formatNumber, handleStop, isLoggedIn, MyContext, trackMessage } from '../helpers';
+import { formatNumber, handleStop, isLoggedIn, MyContext, promptWithdrawalAmount, trackMessage } from '../helpers';
 import { handleStart } from '../command/start';
 import { handleAdmin } from '../command/admin';
 import { handleLogin } from '../command/login';
@@ -197,18 +197,15 @@ composer.on('callback_query', async (ctx) => {
     } else if (callbackData === 'cancel') {
       await handleStop(ctx, messageIds);
     } else if (callbackData === 'high_risk_withdrawal') {
-      const reply = await ctx.reply('<b>Withdrawal Amount</b> 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)', { parse_mode: 'HTML' });
-      messageIds.push(reply.message_id);
+      await promptWithdrawalAmount(ctx, messageIds);
       ctx.session.userPlan = UserPlan.HIGH_RISK;
       ctx.session.route = 'withdrawalRequestInProgress';
     } else if (callbackData === 'medium_risk_withdrawal') {
-      const reply = await ctx.reply('<b>Withdrawal Amount</b> 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)', { parse_mode: 'HTML' });
-      messageIds.push(reply.message_id);
+      await promptWithdrawalAmount(ctx, messageIds);
       ctx.session.userPlan = UserPlan.MEDIUM_RISK;
       ctx.session.route = 'withdrawalRequestInProgress';
     } else if (callbackData === 'low_risk_withdrawal') {
-      const reply = await ctx.reply('<b>Withdrawal Amount</b> 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)', { parse_mode: 'HTML' });
-      messageIds.push(reply.message_id);
+      await promptWithdrawalAmount(ctx, messageIds);
       ctx.session.userPlan = UserPlan.LOW_RISK;
       ctx.session.route = 'withdrawalRequestInProgress';
     } else if (callbackData === 'transaction_history') {

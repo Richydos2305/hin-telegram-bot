@@ -177,7 +177,7 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   }
 
   const reply = await ctx.reply(
-    `<b>Note</b>❗\n\n If this request is approved it will take place from <b>${nextStartMonth}</b> ${nextYear}.\n\n Type OK if you wish to continue or Use /stop if you don't wish to proceed.`,
+    `<b>Note</b>❗\n\n If this request is approved it will take place from <b>${nextStartMonth}</b> ${nextYear}.\n\n Use /stop if you don't wish to proceed.`,
     { parse_mode: 'HTML' }
   );
 
@@ -285,90 +285,81 @@ Once again, thank you for your patronage.
   }
 };
 
-export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any ): Promise<void> {
-  const { message } = ctx;
-  //const { userData } = ctx.session;
-  messageIds.push(ctx.message?.message_id as number);
-
-  if (isLoggedIn(ctx.session.token)) {
-    if (message) {
-      let receipt: { file: string; type: FileType } | null = null;
-      if (message.photo) {
-        receipt = {
-          file: message.photo[0].file_id,
-          type: FileType.PHOTO
-        };
-      } else if (message.document) {
-        receipt = {
-          file: message.document.file_id,
-          type: FileType.DOCUMENT
-        };
-      }
-      if (receipt) {
-        let account;
-        if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
-          account = await HighRiskAccounts.findOne({ user_id: userData._id });
-          if (!account) {
-            account = await HighRiskAccounts.create({ user_id: userData._id });
-          }
-        } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
-          account = await MediumRiskAccounts.findOne({ user_id: userData._id });
-          if (!account) {
-            account = await HighRiskAccounts.create({ user_id: userData._id });
-          }
-        } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
-          account = await LowRiskAccounts.findOne({ user_id: userData._id });
-          if (!account) {
-            account = await HighRiskAccounts.create({ user_id: userData._id });
-          }
+export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any, message: any): Promise<void> {
+  
+  if (message) {
+    let receipt: { file: string; type: FileType } | null = null;
+    if (message.photo) {
+      receipt = {
+        file: message.photo[0].file_id,
+        type: FileType.PHOTO
+      };
+    } else if (message.document) {
+      receipt = {
+        file: message.document.file_id,
+        type: FileType.DOCUMENT
+      };
+    }
+    if (receipt) {
+      let account;
+      if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+        account = await HighRiskAccounts.findOne({ user_id: userData._id });
+      } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+        account = await MediumRiskAccounts.findOne({ user_id: userData._id });
+        //Yet to create a function that will check the date of the last deposit and compare it with the current date to see the lenght if we have not taken our first trade yet then the new money should be added into the account else another meduim risk account will be created.
+        if (!account) {
+          account = await MediumRiskAccounts.create({ user_id: userData._id });
         }
-        if (account) {
-          const transactionRecord = await Transactions.create({
-            user_id: userData._id,
-            account_id: account._id,
-            type: TransactionType.DEPOSIT,
-            amount: ctx.session.amount,
-            plan: ctx.session.userPlan,
-            receipt
-          });
-          console.log("Transaction record created", transactionRecord);
-          if (transactionRecord) {
-            console.log("Transaction record found");
-            ctx.session.route = '';
-            let reply = await ctx.reply(
-              `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
-              { parse_mode: 'HTML' }
-            );
-            messageIds.push(reply.message_id);
-
-            reply = await bot.api.sendMessage(
-              settings.adminIds.chatId1,
-              `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
-            );
-            trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
-
-            reply = await bot.api.sendMessage(
-              settings.adminIds.chatId2,
-              `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
-            );
-            trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
-            ctx.session.amount = 0;
-          }
+      } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+        account = await LowRiskAccounts.findOne({ user_id: userData._id });
+        if (!account) {
+          account = await LowRiskAccounts.create({ user_id: userData._id });
         }
-      } else if (message.text === '/stop') {
-        await handleStop(ctx, messageIds);
-      } else {
-        const reply = await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.`);
-        messageIds.push(reply.message_id);
       }
+      if (account) {
+        const transactionRecord = await Transactions.create({
+          user_id: userData._id,
+          account_id: account._id,
+          type: TransactionType.DEPOSIT,
+          amount: ctx.session.amount,
+          plan: ctx.session.userPlan,
+          receipt
+        });
+        if (transactionRecord) {
+          console.log("Transaction record found");
+          ctx.session.route = '';
+          let reply = await ctx.reply(
+            `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
+            { parse_mode: 'HTML' }
+          );
+          messageIds.push(reply.message_id);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId1,
+            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId2,
+            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+          ctx.session.amount = 0;
+        }
+      }
+    } else if (message.text === '/stop') {
+      await handleStop(ctx, messageIds);
+    } else {
+      const reply = await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.`);
+      messageIds.push(reply.message_id);
     }
   }
 }
 
-export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promise<void> {
-  const { message } = ctx;
-  messageIds.push(ctx.message?.message_id as number);
 
+export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promise<void> {
+  
   const highRiskAccount = await HighRiskAccounts.findOne({ user_id: userData._id });
   const mediumRiskAccount = await MediumRiskAccounts.findOne({ user_id: userData._id });
   const lowRiskAccount = await LowRiskAccounts.findOne({ user_id: userData._id });
@@ -384,6 +375,7 @@ export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promi
     keyboard.push([{ text: 'LOW RISK', callback_data: 'low_risk_withdrawal' }]);
   }
   if (keyboard.length > 0) {
+    keyboard.push([{ text: 'CANCEL', callback_data: 'cancel' }]);
     const reply = await ctx.reply('Choose plan to withdraw from: ', {
       reply_markup: {
         inline_keyboard: keyboard
@@ -396,90 +388,85 @@ export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promi
     messageIds.push(reply.message_id);
     await handleStop(ctx, messageIds);
   }
-  if (message) {
-    if (message.text === '/stop') {
-      await handleStop(ctx, messageIds);
-    }
-  }
 }
 
-export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
-  const { message } = ctx;
-  messageIds.push(ctx.message?.message_id as number);
-
-  if (isLoggedIn(ctx.session.token)) {
-    if (message) {
-        const amount = message.text;
-        if (amount && !isNaN(Number(amount))) {
-          if (Number(amount) < 10000) {
-            const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum withdrawal amount is  ₦10,000.`, { parse_mode: 'HTML' });
-            messageIds.push(reply.message_id);
-          } else {
-            let account: any;
-            if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
-              account = await HighRiskAccounts.findOne({ user_id: userData._id });
-            } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
-              account = await MediumRiskAccounts.findOne({ user_id: userData._id });
-              const startDate = new Date(account?.start_date);
-              const currentDate = new Date();
-              const difference = currentDate.getTime() - startDate.getTime();
-              const yearInMilliseconds = 31536000000;
-              if (difference < yearInMilliseconds) {
-                const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
-                const reply = await ctx.reply(`You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`, { parse_mode: 'HTML' });
-                messageIds.push(reply.message_id);
-                await handleStop(ctx, messageIds);
-                return;
-              }
-            } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
-              account = await LowRiskAccounts.findOne({ user_id: userData._id });
-              const startDate = new Date(account?.start_date);
-              const currentDate = new Date();
-              const difference = currentDate.getTime() - startDate.getTime();
-              const yearInMilliseconds = 31536000000;
-              if (difference < yearInMilliseconds) {
-                const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
-                const reply = await ctx.reply(`You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`, { parse_mode: 'HTML' });
-                messageIds.push(reply.message_id);
-                await handleStop(ctx, messageIds);
-                return;
-              }
+export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], userData: any, message: any): Promise<void> {
+ 
+  if (message) {
+      const amount = message.text;
+      if (amount && !isNaN(Number(amount))) {
+        if (Number(amount) < 10000) {
+          const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum withdrawal amount is  ₦10,000.`, { parse_mode: 'HTML' });
+          messageIds.push(reply.message_id);
+        } else {
+          let account: any;
+          if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+            account = await HighRiskAccounts.findOne({ user_id: userData._id });
+          } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+            account = await MediumRiskAccounts.findOne({ user_id: userData._id });
+            if (await daysLeftInPlan(ctx, account?.start_date)) {
+              return;
             }
-            if (account && Number(amount) <= account.current_balance) {
-              await Transactions.create({
-                user_id: userData._id,
-                account_id: account._id,
-                type: TransactionType.WITHDRAWAL,
-                amount: Number(amount)
-              });
-              ctx.session.route = '';
-              let reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
-              messageIds.push(reply.message_id);
-    
-              reply = await bot.api.sendMessage(
-                settings.adminIds.chatId1,
-                `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
-              );
-              trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
-    
-              reply = await bot.api.sendMessage(
-                settings.adminIds.chatId2,
-                `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
-              );
-              trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
-            } else {
-              const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
-                parse_mode: 'HTML'
-              });
-              messageIds.push(reply.message_id);
+          } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+            account = await LowRiskAccounts.findOne({ user_id: userData._id });
+            if (await daysLeftInPlan(ctx, account?.start_date)) {
+              return;
             }
           }
-        } else if (message.text === '/stop') {
-          await handleStop(ctx, messageIds);
-        } else {
-          const reply = await ctx.reply('<b>Invalid Amount</b> 📝\n\nPlease enter a valid amount to proceed.', { parse_mode: 'HTML' });
-          messageIds.push(reply.message_id);
+          if (account && Number(amount) <= account.current_balance) {
+            await Transactions.create({
+              user_id: userData._id,
+              account_id: account._id,
+              type: TransactionType.WITHDRAWAL,
+              amount: Number(amount)
+            });
+            ctx.session.route = '';
+            let reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
+            messageIds.push(reply.message_id);
+  
+            reply = await bot.api.sendMessage(
+              settings.adminIds.chatId1,
+              `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+            );
+            trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+  
+            reply = await bot.api.sendMessage(
+              settings.adminIds.chatId2,
+              `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+            );
+            trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+          } else {
+            const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
+              parse_mode: 'HTML'
+            });
+            messageIds.push(reply.message_id);
+          }
         }
+      } else if (message.text === '/stop') {
+        await handleStop(ctx, messageIds);
+      } else {
+        const reply = await ctx.reply('<b>Invalid Amount</b> 📝\n\nPlease enter a valid amount to proceed.', { parse_mode: 'HTML' });
+        messageIds.push(reply.message_id);
       }
-  }
+    }
 }
+
+
+export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[]): Promise<void> {
+  const reply = await ctx.reply('<b>Withdrawal Amount</b> 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)', { parse_mode: 'HTML' });
+  messageIds.push(reply.message_id);
+}
+
+const daysLeftInPlan = async (ctx: MyContext, startDate: Date) => {
+  const currentDate = new Date();
+  const difference = currentDate.getTime() - startDate.getTime();
+  const yearInMilliseconds = 31536000000;
+  if (difference < yearInMilliseconds) {
+    const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
+    const reply = await ctx.reply(`You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`, { parse_mode: 'HTML' });
+    messageIds.push(reply.message_id);
+    await handleStop(ctx, messageIds);
+    return true;
+  }
+  return false;
+};

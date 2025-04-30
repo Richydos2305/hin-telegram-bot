@@ -9,36 +9,6 @@ import { bot } from '../..';
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
 
-router.route('choosePlanForDeposit', async (ctx) => {
-  const { message } = ctx;
-  const userId = ctx.message?.chat.id;
-  messageIds.push(ctx.message?.message_id as number);
-
-  if(message?.text === '/stop') {
-    await handleStop(ctx, messageIds);
-  } else {
-    const reply = await ctx.reply('Choose plan to deposit into: ', {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: 'HIGH RISK', callback_data: 'high_risk_deposit' },
-            { text: 'MEDIUM RISK', callback_data: 'medium_risk_deposit' }
-          ],
-          [
-            { text: 'LOW RISK', callback_data: 'low_risk_deposit' },
-            { text: 'CANCEL', callback_data: 'cancel' }
-          ]
-        ]
-      }
-    });
-    messageIds.push(reply.message_id);
-    ctx.session.route = '';
-  }
-  
-  if (userId) trackMessage(userId as number, messageIds);
-  messageIds.length = 0;
-});
-
 router.route('depositRequestInProgress', async (ctx) => {
   const { message } = ctx;
   const userId = message?.chat.id;
@@ -76,7 +46,7 @@ router.route('depositRequestConfirmation', async (ctx) => {
   const userId = message?.chat.id;
   messageIds.push(message?.message_id as number);
 
-  await confirmDeposit(ctx, messageIds, userData);
+  await confirmDeposit(ctx, messageIds, userData, message);
 
   if (userId) trackMessage(userId as number, messageIds);
   messageIds.length = 0;
