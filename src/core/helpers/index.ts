@@ -661,7 +661,7 @@ export async function updateBufferWithdrawal(ctx: MyContext, amount: number, use
   if (buffer) {
       buffer.amount_allocated -= amount/2;
       await buffer.save();
-      console.log(`Buffer updated successfully. removed ${amount} from allocated amount.`);
+      console.log(`Buffer updated successfully. removed ${amount / 2} from allocated amount.`);
     }
     ctx.session.route = 'transactionRequestReceiptUpload';
   } else if (userPlan === UserPlan.LOW_RISK) {
