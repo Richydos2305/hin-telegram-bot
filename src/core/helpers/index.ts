@@ -608,23 +608,35 @@ export function getAccountDates(): { startDate: Date; endDate: Date } {
 
 export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<String | void> {
   if(userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
+
     const buffer = await HinBuffer.findOne();
-    if ((buffer?.amount ?? 0) * 2 == buffer?.amount_allocated) {
+    if (buffer) {
+    if ((buffer.amount) * 2 == buffer.amount_allocated) {
       const reply = await ctx.reply('<b>No more deposits can be made at this time.</b> 🚫', {
         parse_mode: 'HTML'
       });
       messageIds.push(reply.message_id);
       return "false";
     }
+    let availableAmount = (((buffer.amount) * 2) - (buffer.amount_allocated)) * 2;
 
-    let availableAmount = ((buffer?.amount ?? 0) * 2) - (buffer?.amount_allocated ?? 0);
-    if(amount > availableAmount) {
-      availableAmount = availableAmount * 2;
-      const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount)}`, {
-        parse_mode: 'HTML'
-      });
-      messageIds.push(reply.message_id);
-      return "Try again";
+    if (userPlan === UserPlan.MEDIUM_RISK) {
+      if (amount >= availableAmount) {
+        const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount)}`, {
+          parse_mode: 'HTML'
+        });
+        messageIds.push(reply.message_id);
+        return "Try again";
+      }
+    }
+    else if (userPlan === UserPlan.LOW_RISK) {
+      if (amount >= availableAmount/2) {
+        const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount/2)}`, {
+          parse_mode: 'HTML'
+        });
+        messageIds.push(reply.message_id);
+        return "Try again";
+      }
     }
   }
   else if(!userPlan) {
@@ -635,18 +647,24 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
     ctx.session.route = 'choosePlanForDeposit';
   }
   console.log('Buffer check passed');
-
+  }
 }
 
 export async function updateBufferDeposits(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<void> {
   const buffer = await HinBuffer.findOne();
   await checkBuffer(ctx, messageIds, amount, userPlan);
-  if (userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
+  if (userPlan === UserPlan.MEDIUM_RISK) {
     if (buffer) {
       buffer.amount_allocated += amount / 2;
       await buffer.save();
     }
   }
+  else if (userPlan === UserPlan.LOW_RISK) {
+    if (buffer) {
+      buffer.amount_allocated += amount;
+      await buffer.save();
+    }
+  } 
   const reply = await ctx.reply(`Buffer updated successfully.`, {
     parse_mode: 'HTML'
   });
@@ -655,7 +673,7 @@ export async function updateBufferDeposits(ctx: MyContext, messageIds: number[],
 
 
 export async function updateBufferWithdrawal(ctx: MyContext, amount: number, userPlan: UserPlan): Promise<void> {
-  if (userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
+  if (userPlan === UserPlan.MEDIUM_RISK) {
   const buffer = await HinBuffer.findOne();
   if (buffer) {
       buffer.amount_allocated -= amount/2;
@@ -663,5 +681,13 @@ export async function updateBufferWithdrawal(ctx: MyContext, amount: number, use
       console.log(`Buffer updated successfully. removed ${amount} from allocated amount.`);
     }
     ctx.session.route = 'transactionRequestReceiptUpload';
+  } else if (userPlan === UserPlan.LOW_RISK) {
+    const buffer = await HinBuffer.findOne();
+    if (buffer) {
+      buffer.amount_allocated -= amount;
+      await buffer.save();
+      console.log(`Buffer updated successfully. removed ${amount} from allocated amount.`);
+    }
   }
 }
+
