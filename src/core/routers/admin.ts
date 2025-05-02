@@ -114,8 +114,10 @@ router.route('viewUserTransaction', async (ctx) => {
           parse_mode: 'HTML',
           reply_markup: transactionConfirmationkeyboard
         });
+
         messageIds.push(reply.message_id);
         ctx.session.currentTransaction = userTransaction;
+        ctx.session.userPlan = userTransaction.transaction.plan;
         ctx.session.route = 'transactionRequestInProgress';
       } else {
         const reply = await ctx.reply('A user with that name does not exist');
@@ -175,7 +177,8 @@ router.route('transactionRequestInProgress', async (ctx) => {
       if (user) {
         const reply = await bot.api.sendMessage(
           user.chat_id,
-          `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
+          `<b>Transaction Denied!</b> 🚫\n\nUnfortunately, your transaction request of ${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`,
+          { parse_mode: 'HTML' }
         );
         messageIds.push(reply.message_id);
         ctx.session.route = '';

@@ -177,10 +177,9 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
     }
   }
 
-  const reply = await ctx.reply(
-    `<b>Note</b>❗\n\n If this request is approved it will take place from <b>${nextStartMonth}</b> ${nextYear}.\n\n Use /stop if you don't wish to proceed.`,
-    { parse_mode: 'HTML' }
-  );
+  const reply = await ctx.reply(`<b>Note</b>❗\n\nIf this request is approved it will take place from <b>${nextStartMonth}</b> ${nextYear}.`, {
+    parse_mode: 'HTML'
+  });
 
   messageIds.push(reply.message_id);
 };
@@ -424,23 +423,15 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
 
         if (transactionRecord) {
           ctx.session.route = '';
-          let reply = await ctx.reply(
-            `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
+          const reply = await ctx.reply(
+            `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\n\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
             { parse_mode: 'HTML' }
           );
           messageIds.push(reply.message_id);
 
-          reply = await bot.api.sendMessage(
-            settings.adminIds.chatId1,
-            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
+          await messageAdmins(
+            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan} Risk Plan. \nKindly log in as an admin to confirm this.`
           );
-          trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
-
-          reply = await bot.api.sendMessage(
-            settings.adminIds.chatId2,
-            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
-          );
-          trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
           ctx.session.amount = 0;
         }
       }
@@ -516,20 +507,12 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
             amount: Number(amount)
           });
           ctx.session.route = '';
-          let reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
+          const reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
           messageIds.push(reply.message_id);
 
-          reply = await bot.api.sendMessage(
-            settings.adminIds.chatId1,
+          await messageAdmins(
             `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
           );
-          trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
-
-          reply = await bot.api.sendMessage(
-            settings.adminIds.chatId2,
-            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
-          );
-          trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
         } else {
           const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
             parse_mode: 'HTML'
