@@ -170,7 +170,7 @@ composer.on('callback_query', async (ctx) => {
       }
     } else if (callbackData === 'high_risk_deposit') {
       const reply = await ctx.reply(
-        `<b>High-Risk Plan</b> 📈\n\nDuration: 3 months\nExpected Returns: 30–50% on average\nCapital Guarantee: None\nDescription: Designed for aggressive growth. This plan offers high return potential but also carries the risk of loss. Suitable for investors comfortable with volatility. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
+        `<b>High-Risk Plan</b> 📈\n\n<b>Duration</b>: 3 months\n<b>Expected Returns</b>: 30–50% on average\n<b>Capital Guarantee</b>: None\n<b>Description</b>: Designed for aggressive growth. This plan offers high return potential but also carries the risk of loss. Suitable for investors comfortable with volatility. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
         { parse_mode: 'HTML' }
       );
       messageIds.push(reply.message_id);
@@ -178,7 +178,7 @@ composer.on('callback_query', async (ctx) => {
       ctx.session.route = 'depositRequestInProgress';
     } else if (callbackData === 'medium_risk_deposit') {
       const reply = await ctx.reply(
-        `<b>Meduim-Risk Plan</b> 📈\n\nDuration: 1 Year\nExpected Returns: 100%\nCapital Guarantee: 50%\nDescription: A balanced option for steady growth. Offers strong returns with partial protection of your capital. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
+        `<b>Medium-Risk Plan</b> 📈\n\n<b>Duration</b>: 1 Year\n<b>Expected Returns</b>: 100%\n<b>Capital Guarantee</b>: 50%\n<b>Description</b>: A balanced option for steady growth. Offers strong returns with partial protection of your capital. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
         { parse_mode: 'HTML' }
       );
       messageIds.push(reply.message_id);
@@ -186,7 +186,7 @@ composer.on('callback_query', async (ctx) => {
       ctx.session.route = 'depositRequestInProgress';
     } else if (callbackData === 'low_risk_deposit') {
       const reply = await ctx.reply(
-        `<b>Low-Risk Plan</b> 📈\n\nDuration: 1 Year\nExpected Returns: 30%\nCapital Guarantee: 100%\nDescription: For risk-averse investors. Your capital is fully protected while earning stable, moderate returns. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
+        `<b>Low-Risk Plan</b> 📈\n\n<b>Duration</b>: 1 Year\n<b>Expected Returns</b>: 30%\n<b>Capital Guarantee</b>: 100%\n<b>Description</b>: For risk-averse investors. Your capital is fully protected while earning stable, moderate returns. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
         { parse_mode: 'HTML' }
       );
       messageIds.push(reply.message_id);
