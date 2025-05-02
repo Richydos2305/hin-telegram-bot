@@ -8,9 +8,10 @@ import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { HinBuffer } from '../models/buffer';
 import { Quarters } from '../models/quarters';
 import { bot, messageStore } from '../..';
-import { QuarterBeginningMonths, quarterMap, quarterStartMonths, statusType } from '../interfaces';
-import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, TransactionType, UserPlan, statusType } from '../interfaces';
+import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
+import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 
 const messageIds: number[] = [];
 
@@ -94,6 +95,7 @@ export interface SessionData {
   commissions: boolean;
   route: string;
   transactionHistory: any[];
+  userPlan: string | null;
 }
 
 export function initial(): SessionData {
@@ -115,7 +117,8 @@ export function initial(): SessionData {
     quarter: 0,
     commissions: true,
     route: '',
-    transactionHistory: []
+    transactionHistory: [],
+    userPlan: null
   };
 }
 
@@ -369,3 +372,236 @@ export const makeAnEntry = async (ctx: MyContext): Promise<void> => {
     console.error(error);
   }
 };
+
+export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
+  const { message } = ctx;
+
+  if (message) {
+    let receipt: { file: string; type: FileType } | null = null;
+    if (message.photo) {
+      receipt = {
+        file: message.photo[0].file_id,
+        type: FileType.PHOTO
+      };
+    } else if (message.document) {
+      receipt = {
+        file: message.document.file_id,
+        type: FileType.DOCUMENT
+      };
+    }
+    if (receipt) {
+      let account;
+      if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+        account = await HighRiskAccounts.findOne({ user_id: userData._id });
+      } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+        account = await MediumRiskAccounts.findOne({ user_id: userData._id, status: 'active' });
+        if (!account) {
+          account = await MediumRiskAccounts.create({ user_id: userData._id });
+        } else {
+          if (checkDeposits()) {
+            account = await MediumRiskAccounts.create({ user_id: userData._id });
+          }
+        }
+      } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+        account = await LowRiskAccounts.findOne({ user_id: userData._id, status: 'active' });
+        if (!account) {
+          account = await LowRiskAccounts.create({ user_id: userData._id });
+        } else {
+          if (checkDeposits()) {
+            account = await LowRiskAccounts.create({ user_id: userData._id });
+          }
+        }
+      }
+      if (account) {
+        const transactionRecord = await Transactions.create({
+          user_id: userData._id,
+          account_id: account._id,
+          type: TransactionType.DEPOSIT,
+          amount: ctx.session.amount,
+          plan: ctx.session.userPlan,
+          receipt
+        });
+
+        if (transactionRecord) {
+          ctx.session.route = '';
+          let reply = await ctx.reply(
+            `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
+            { parse_mode: 'HTML' }
+          );
+          messageIds.push(reply.message_id);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId1,
+            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId2,
+            `${userData.first_name} just made a deposit request of ${formatNumber(ctx.session.amount)} in the ${ctx.session.userPlan}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+          ctx.session.amount = 0;
+        }
+      }
+    } else if (message.text === '/stop') {
+      await handleStop(ctx, messageIds);
+    } else {
+      const reply = await ctx.reply(`**Invalid Receipt** 🚫\n\nPlease send a valid receipt to proceed.`);
+      messageIds.push(reply.message_id);
+    }
+  }
+}
+
+export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promise<void> {
+  const highRiskAccount = await HighRiskAccounts.findOne({ user_id: userData._id });
+  const mediumRiskAccount = await MediumRiskAccounts.findOne({ user_id: userData._id });
+  const lowRiskAccount = await LowRiskAccounts.findOne({ user_id: userData._id });
+
+  const keyboard: any[] = [];
+  if (highRiskAccount) {
+    keyboard.push([{ text: 'HIGH RISK', callback_data: 'high_risk_withdrawal' }]);
+  }
+  if (mediumRiskAccount) {
+    keyboard.push([{ text: 'MEDIUM RISK', callback_data: 'medium_risk_withdrawal' }]);
+  }
+  if (lowRiskAccount) {
+    keyboard.push([{ text: 'LOW RISK', callback_data: 'low_risk_withdrawal' }]);
+  }
+  if (keyboard.length > 0) {
+    keyboard.push([{ text: 'CANCEL', callback_data: 'cancel' }]);
+    const reply = await ctx.reply('Choose plan to withdraw from: ', {
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    });
+    messageIds.push(reply.message_id);
+    ctx.session.route = '';
+  } else {
+    const reply = await ctx.reply('You do not have an account in any plan.');
+    messageIds.push(reply.message_id);
+    await handleStop(ctx, messageIds);
+  }
+}
+
+export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
+  const { message } = ctx;
+
+  if (message) {
+    const amount = message.text;
+    if (amount && !isNaN(Number(amount))) {
+      if (Number(amount) < 10000) {
+        const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum withdrawal amount is  ₦10,000.`, { parse_mode: 'HTML' });
+        messageIds.push(reply.message_id);
+      } else {
+        let account: any;
+        if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+          account = await HighRiskAccounts.findOne({ user_id: userData._id });
+        } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+          account = await MediumRiskAccounts.findOne({ user_id: userData._id });
+          if (await daysLeftInPlan(ctx, account?.start_date)) {
+            return;
+          }
+        } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+          account = await LowRiskAccounts.findOne({ user_id: userData._id });
+          if (await daysLeftInPlan(ctx, account?.start_date)) {
+            return;
+          }
+        }
+        if (account && Number(amount) <= account.current_balance) {
+          await Transactions.create({
+            user_id: userData._id,
+            account_id: account._id,
+            type: TransactionType.WITHDRAWAL,
+            amount: Number(amount)
+          });
+          ctx.session.route = '';
+          let reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
+          messageIds.push(reply.message_id);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId1,
+            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId2,
+            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+        } else {
+          const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
+            parse_mode: 'HTML'
+          });
+          messageIds.push(reply.message_id);
+        }
+      }
+    } else if (message.text === '/stop') {
+      await handleStop(ctx, messageIds);
+    } else {
+      const reply = await ctx.reply('<b>Invalid Amount</b> 📝\n\nPlease enter a valid amount to proceed.', { parse_mode: 'HTML' });
+      messageIds.push(reply.message_id);
+    }
+  }
+}
+
+export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[]): Promise<void> {
+  const reply = await ctx.reply('<b>Withdrawal Amount</b> 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)', { parse_mode: 'HTML' });
+  messageIds.push(reply.message_id);
+}
+
+const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean> => {
+  const currentDate = new Date();
+  const difference = currentDate.getTime() - startDate.getTime();
+  const yearInMilliseconds = 31536000000;
+  if (difference < yearInMilliseconds) {
+    const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
+    const reply = await ctx.reply(
+      `You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`,
+      { parse_mode: 'HTML' }
+    );
+    messageIds.push(reply.message_id);
+    await handleStop(ctx, messageIds);
+    return true;
+  }
+  return false;
+};
+
+const checkDeposits = (): boolean => {
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  const quarterStartMonths = [1, 4, 7, 10];
+
+  for (const month of quarterStartMonths) {
+    if (currentMonth === month) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export function getAccountDates(): { startDate: Date; endDate: Date } {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  let startMonth;
+
+  if (currentMonth % 3 === 0) {
+    startMonth = currentMonth + 1;
+  } else if ((currentMonth + 1) % 3 === 0) {
+    startMonth = currentMonth + 2;
+  } else {
+    if (currentMonth !== 10) {
+      startMonth = currentMonth + 3;
+    }
+    startMonth = 1;
+  }
+
+  const startDate = currentMonth === 10 ? new Date(now.getFullYear() + 1, 0, 1) : new Date(now.getFullYear(), startMonth - 1, 1);
+
+  const endDate = new Date(startDate);
+  endDate.setFullYear(endDate.getFullYear() + 1);
+
+  return { startDate, endDate };
+}

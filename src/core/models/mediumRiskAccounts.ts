@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { statusType } from '../interfaces';
+import { getAccountDates } from '../helpers';
 
 const MediumRiskAccountSchema = new Schema(
   {
@@ -32,16 +33,12 @@ const MediumRiskAccountSchema = new Schema(
 
     start_date: {
       type: Date,
-      default: Date.now
+      default: getAccountDates().startDate
     },
 
     completion_date: {
       type: Date,
-      default: (): Date => {
-        const now = new Date();
-        now.setFullYear(now.getFullYear() + 1);
-        return now;
-      }
+      default: getAccountDates().endDate
     }
   },
   {

@@ -1,11 +1,13 @@
 import { Router } from '@grammyjs/router';
 import { formatNumber, makeAnEntry, MyContext, trackMessage } from '../helpers';
-import { FileType, TransactionStatus, TransactionType } from '../interfaces';
+import { FileType, TransactionStatus, TransactionType, UserPlan } from '../interfaces';
 import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
 import { bot } from '../..';
+import { LowRiskAccounts } from '../models/lowRiskAccounts';
+import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -132,7 +134,11 @@ router.route('transactionRequestInProgress', async (ctx) => {
   messageIds.push(message?.message_id as number);
 
   if (message) {
-    const account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    let account;
+    if (ctx.session.userPlan === UserPlan.HIGH_RISK) account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK)
+      account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    else if (ctx.session.userPlan === UserPlan.LOW_RISK) account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     const user = await Users.findById(currentTransaction.transaction.user_id);
     console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);
 
