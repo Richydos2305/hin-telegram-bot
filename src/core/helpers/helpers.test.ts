@@ -1,4 +1,5 @@
-import { trackMessage, deleteChatHistory, getAccessToken, isLoggedIn } from './index';
+import { trackMessage, deleteChatHistory, getAccessToken, isLoggedIn, getRandomInt, MyContext, handleStop, getNextQuarterMonth } from './index';
+import { Quarters } from '../models/quarters';
 import { messageStore, bot } from '../../bot';
 import * as jwt from 'jsonwebtoken';
 import { Types } from 'mongoose';
@@ -170,5 +171,119 @@ describe('isLoggedIn', () => {
     expect(result).toBe(false);
 
     consoleSpy.mockRestore();
+  });
+});
+
+describe('getRandomInt', () => {
+  it('returns a number between min and max (inclusive)', () => {
+    const min = 1;
+    const max = 5;
+
+    for (let i = 0; i < 50; i++) {
+      const result = getRandomInt(min, max);
+      expect(result).toBeGreaterThanOrEqual(min);
+      expect(result).toBeLessThanOrEqual(max);
+    }
+  });
+
+  it('works when min and max are the same', () => {
+    const result = getRandomInt(3, 3);
+    expect(result).toBe(3);
+  });
+
+  it('returns integers only', () => {
+    const min = 10;
+    const max = 20;
+
+    for (let i = 0; i < 100; i++) {
+      const result = getRandomInt(min, max);
+      expect(Number.isInteger(result)).toBe(true);
+    }
+  });
+});
+
+jest.spyOn(Quarters, 'findOne').mockResolvedValue(null);
+
+describe('handleStop', () => {
+  it('clears the session route and pushes reply message ID', async () => {
+    const messageIds: number[] = [];
+    const mockCtx = {
+      session: {
+        route: 'some-route'
+      },
+      reply: jest.fn().mockResolvedValue({ message_id: 12345 })
+    } as unknown as MyContext;
+
+    await handleStop(mockCtx, messageIds);
+
+    expect(mockCtx.session.route).toBe('');
+    expect(mockCtx.reply).toHaveBeenCalledWith(`<b>Request stopped!</b> 🤖\nClick the menu button below to explore all features 📚.`, {
+      parse_mode: 'HTML'
+    });
+    expect(messageIds).toContain(12345);
+  });
+});
+
+describe('getNextQuarterMonth', () => {
+  let mockCtx: MyContext;
+  let messageIds: number[];
+
+  beforeEach(() => {
+    messageIds = [];
+    mockCtx = {
+      reply: jest.fn().mockResolvedValue({ message_id: 777 })
+    } as any;
+
+    jest.clearAllMocks();
+  });
+
+  it('should log and return when no quarter data is found', async () => {
+    (Quarters.findOne as jest.Mock).mockReturnValue({
+      limit: () => ({
+        sort: () => Promise.resolve(null)
+      })
+    });
+
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await getNextQuarterMonth(mockCtx, messageIds);
+
+    expect(Quarters.findOne).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith('No quarter data found.');
+    expect(mockCtx.reply).not.toHaveBeenCalled();
+    expect(messageIds).toHaveLength(0);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should calculate next start month and reply with correct message', async () => {
+    (Quarters.findOne as jest.Mock).mockReturnValue({
+      limit: () => ({
+        sort: () => Promise.resolve({ quarter: 3, year: 2024 })
+      })
+    });
+
+    await getNextQuarterMonth(mockCtx, messageIds);
+
+    expect(mockCtx.reply).toHaveBeenCalledWith(expect.stringContaining('If this request is approved it will take place from'), {
+      parse_mode: 'HTML'
+    });
+
+    expect(messageIds).toContain(777);
+  });
+
+  it('should increment year when quarter is 4', async () => {
+    (Quarters.findOne as jest.Mock).mockReturnValue({
+      limit: () => ({
+        sort: () => Promise.resolve({ quarter: 4, year: new Date().getFullYear() })
+      })
+    });
+
+    await getNextQuarterMonth(mockCtx, messageIds);
+
+    const [[messageText]] = (mockCtx.reply as jest.Mock).mock.calls;
+
+    expect(messageText).toMatch(/from <b>Q1<\/b> \d{4}/);
+    expect(messageIds).toContain(777);
   });
 });
