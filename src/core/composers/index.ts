@@ -1,15 +1,15 @@
 import { Composer } from 'grammy';
-import { formatNumber, isLoggedIn, MyContext, trackMessage } from '../helpers';
+import { formatNumber, handleStop, isLoggedIn, MyContext, promptWithdrawalAmount, trackMessage } from '../helpers';
 import { handleStart } from '../command/start';
 import { handleAdmin } from '../command/admin';
 import { handleLogin } from '../command/login';
 import { handleDeposit } from '../command/deposit';
 import { handleWithdrawal } from '../command/withdraw';
-import { TransactionStatus, TransactionType } from '../interfaces';
+import { TransactionStatus, TransactionType, UserPlan } from '../interfaces';
 import { Quarters } from '../models/quarters';
 import { ITransactions, Transactions } from '../models/transactions';
 import { Users } from '../models/users';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 
 const composer = new Composer<MyContext>();
 const messageIds: number[] = [];
@@ -130,7 +130,7 @@ composer.on('callback_query', async (ctx) => {
         messageIds.push(reply.message_id);
       }
     } else if (callbackData === 'investment_status') {
-      const account = await Accounts.findOne({ user_id: userData._id });
+      const account = await HighRiskAccounts.findOne({ user_id: userData._id });
       const withdrawals: ITransactions[] = await Transactions.find({
         user_id: ctx.session.userData._id,
         type: TransactionType.WITHDRAWAL,
@@ -168,6 +168,44 @@ composer.on('callback_query', async (ctx) => {
           messageIds.push(reply.message_id);
         }
       }
+    } else if (callbackData === 'high_risk_deposit') {
+      const reply = await ctx.reply(
+        `<b>High-Risk Plan</b> 📈\n\n<b>Duration</b>: 3 months\n<b>Expected Returns</b>: 30–50% on average\n<b>Capital Guarantee</b>: None\n<b>Description</b>: Designed for aggressive growth. This plan offers high return potential but also carries the risk of loss. Suitable for investors comfortable with volatility. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
+        { parse_mode: 'HTML' }
+      );
+      messageIds.push(reply.message_id);
+      ctx.session.userPlan = UserPlan.HIGH_RISK;
+      ctx.session.route = 'depositRequestInProgress';
+    } else if (callbackData === 'medium_risk_deposit') {
+      const reply = await ctx.reply(
+        `<b>Medium-Risk Plan</b> 📈\n\n<b>Duration</b>: 1 Year\n<b>Expected Returns</b>: 100%\n<b>Capital Guarantee</b>: 50%\n<b>Description</b>: A balanced option for steady growth. Offers strong returns with partial protection of your capital. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
+        { parse_mode: 'HTML' }
+      );
+      messageIds.push(reply.message_id);
+      ctx.session.userPlan = UserPlan.MEDIUM_RISK;
+      ctx.session.route = 'depositRequestInProgress';
+    } else if (callbackData === 'low_risk_deposit') {
+      const reply = await ctx.reply(
+        `<b>Low-Risk Plan</b> 📈\n\n<b>Duration</b>: 1 Year\n<b>Expected Returns</b>: 30%\n<b>Capital Guarantee</b>: 100%\n<b>Description</b>: For risk-averse investors. Your capital is fully protected while earning stable, moderate returns. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
+        { parse_mode: 'HTML' }
+      );
+      messageIds.push(reply.message_id);
+      ctx.session.userPlan = UserPlan.LOW_RISK;
+      ctx.session.route = 'depositRequestInProgress';
+    } else if (callbackData === 'cancel') {
+      await handleStop(ctx, messageIds);
+    } else if (callbackData === 'high_risk_withdrawal') {
+      await promptWithdrawalAmount(ctx, messageIds);
+      ctx.session.userPlan = UserPlan.HIGH_RISK;
+      ctx.session.route = 'withdrawalRequestInProgress';
+    } else if (callbackData === 'medium_risk_withdrawal') {
+      await promptWithdrawalAmount(ctx, messageIds);
+      ctx.session.userPlan = UserPlan.MEDIUM_RISK;
+      ctx.session.route = 'withdrawalRequestInProgress';
+    } else if (callbackData === 'low_risk_withdrawal') {
+      await promptWithdrawalAmount(ctx, messageIds);
+      ctx.session.userPlan = UserPlan.LOW_RISK;
+      ctx.session.route = 'withdrawalRequestInProgress';
     } else if (callbackData === 'transaction_history') {
       const transactions = await Transactions.find({
         user_id: userData._id,

@@ -4,7 +4,7 @@ import { formatNumber, getAccessToken, handleStop, MyContext, trackMessage } fro
 import { FileType, TransactionStatus } from '../interfaces';
 import { Users } from '../models/users';
 import { questions } from '../command/login';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { bot } from '../../bot';
 import { settings } from '../config/application';
 
@@ -81,7 +81,7 @@ router.route('securityAnswer', async (ctx) => {
       reply = await bot.api.sendMessage(settings.adminIds.chatId2, `${updatedUser.first_name} just finished the Onboarding Process 🎉`);
       trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
 
-      await Accounts.create({ user_id: updatedUser._id });
+      await HighRiskAccounts.create({ user_id: updatedUser._id });
     }
     ctx.session.route = '';
   }

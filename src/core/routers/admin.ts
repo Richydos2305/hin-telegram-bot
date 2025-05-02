@@ -1,11 +1,13 @@
 import { Router } from '@grammyjs/router';
 import { formatNumber, makeAnEntry, MyContext, trackMessage } from '../helpers';
-import { FileType, TransactionStatus, TransactionType } from '../interfaces';
+import { FileType, TransactionStatus, TransactionType, UserPlan } from '../interfaces';
 import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
 import { bot } from '../../bot';
+import { LowRiskAccounts } from '../models/lowRiskAccounts';
+import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -112,8 +114,10 @@ router.route('viewUserTransaction', async (ctx) => {
           parse_mode: 'HTML',
           reply_markup: transactionConfirmationkeyboard
         });
+
         messageIds.push(reply.message_id);
         ctx.session.currentTransaction = userTransaction;
+        ctx.session.userPlan = userTransaction.transaction.plan;
         ctx.session.route = 'transactionRequestInProgress';
       } else {
         const reply = await ctx.reply('A user with that name does not exist');
@@ -132,7 +136,11 @@ router.route('transactionRequestInProgress', async (ctx) => {
   messageIds.push(message?.message_id as number);
 
   if (message) {
-    const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
+    let account;
+    if (ctx.session.userPlan === UserPlan.HIGH_RISK) account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK)
+      account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    else if (ctx.session.userPlan === UserPlan.LOW_RISK) account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     const user = await Users.findById(currentTransaction.transaction.user_id);
     console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);
 
@@ -169,7 +177,8 @@ router.route('transactionRequestInProgress', async (ctx) => {
       if (user) {
         const reply = await bot.api.sendMessage(
           user.chat_id,
-          `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
+          `<b>Transaction Denied!</b> 🚫\n\nUnfortunately, your transaction request of ${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`,
+          { parse_mode: 'HTML' }
         );
         messageIds.push(reply.message_id);
         ctx.session.route = '';
@@ -210,7 +219,7 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
         status: TransactionStatus.APPROVED,
         receipt
       });
-      const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
+      const account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
 
       if (account) {
         account.current_balance = parseFloat((account.current_balance - currentTransaction.transaction.amount).toFixed(2));

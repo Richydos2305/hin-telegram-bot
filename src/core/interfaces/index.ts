@@ -8,6 +8,13 @@ export enum TransactionType {
   DEPOSIT = 'Deposit',
   WITHDRAWAL = 'Withdrawal'
 }
+
+export enum statusType {
+  ACTIVE = 'active',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled'
+}
+
 export enum FileType {
   PHOTO = 'Photo',
   DOCUMENT = 'Document'
@@ -17,6 +24,12 @@ export enum TransactionStatus {
   PENDING = 'Pending',
   APPROVED = 'Approved',
   DENIED = 'Denied'
+}
+
+export enum UserPlan {
+  HIGH_RISK = 'High',
+  MEDIUM_RISK = 'Medium',
+  LOW_RISK = 'Low'
 }
 
 export interface User {
