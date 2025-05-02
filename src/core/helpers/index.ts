@@ -604,7 +604,7 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
     let availableAmount = (((buffer.amount) * 2) - (buffer.amount_allocated)) * 2;
 
     if (userPlan === UserPlan.MEDIUM_RISK) {
-      if (amount >= availableAmount) {
+      if (amount > availableAmount) {
         const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount)}`, {
           parse_mode: 'HTML'
         });
@@ -613,8 +613,8 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
       }
     }
     else if (userPlan === UserPlan.LOW_RISK) {
-      if (amount >= availableAmount/2) {
-        const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount/2)}`, {
+      if (amount > availableAmount / 2) {
+        const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount / 2)}`, {
           parse_mode: 'HTML'
         });
         messageIds.push(reply.message_id);
@@ -673,4 +673,3 @@ export async function updateBufferWithdrawal(ctx: MyContext, amount: number, use
     }
   }
 }
-
