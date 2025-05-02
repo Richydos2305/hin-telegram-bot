@@ -136,7 +136,8 @@ router.route('transactionRequestInProgress', async (ctx) => {
   if (message) {
     let account;
     if (ctx.session.userPlan === UserPlan.HIGH_RISK) account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
-    else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK)
+      account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     else if (ctx.session.userPlan === UserPlan.LOW_RISK) account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     const user = await Users.findById(currentTransaction.transaction.user_id);
     console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);

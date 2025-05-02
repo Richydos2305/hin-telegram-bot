@@ -5,13 +5,13 @@ import { Users } from '../models/users';
 import { Types } from 'mongoose';
 import { SessionFlavor, Context } from 'grammy';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
+import { HinBuffer } from '../models/buffer';
 import { Quarters } from '../models/quarters';
 import { bot, messageStore } from '../..';
-import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, TransactionStatus, TransactionType, UserPlan } from '../interfaces';
+import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, TransactionType, UserPlan, statusType } from '../interfaces';
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
-import { User } from '../interfaces/models';
 
 const messageIds: number[] = [];
 
@@ -218,66 +218,153 @@ export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number)
   return finalAmount;
 }
 
-export const makeAnEntry = async (ctx: any): Promise<void> => {
-  try {
-    const userId = ctx.message?.chat.id;
-    let startingCapital: number;
-    let endingCapital: number = 0;
-    let managementFee: number = 0;
-    let result: number | { finalAmount: number; managementFee: number; newROI: number };
+export async function messageAdmins(message: string): Promise<void> {
+  let reply = await bot.api.sendMessage(settings.adminIds.chatId1, message);
+  trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
 
-    const users = await Users.find();
-    for (const user of users) {
-      const account = await HighRiskAccounts.findOne({ user_id: user._id });
-      let roi = ctx.session.roi;
-      if (account && account.current_balance > 0) {
-        startingCapital = account.current_balance;
-        if (ctx.session.commissions === false) {
-          result = ROICalcForAdmin(roi, startingCapital);
-          endingCapital = result;
-        } else if (ctx.session.commissions === true) {
-          result = ROICalcForClient(user.username, roi, startingCapital);
-          managementFee += result.managementFee;
-          roi = result.newROI;
-          endingCapital = result.finalAmount;
-        }
-        const quarterRecord = await Quarters.create({
-          user_id: user._id,
-          account_id: account._id,
-          year: ctx.session.year,
-          quarter: ctx.session.quarter,
-          roi: parseFloat((roi / 100).toFixed(4)),
-          commission: ctx.session.commissions,
-          starting_capital: parseFloat(startingCapital.toFixed(2)),
-          ending_capital: parseFloat(endingCapital.toFixed(2))
-        });
+  reply = await bot.api.sendMessage(settings.adminIds.chatId2, message);
+  trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+}
 
-        if (quarterRecord) {
-          account.current_balance = quarterRecord.ending_capital;
-          await account.save();
-          let reply = await ctx.reply(`Successful Entry for ${user.username}`);
-          messageIds.push(reply.message_id);
-          reply = await bot.api.sendMessage(
-            user.chat_id,
-            `Quarterly Performance Update for Q${ctx.session.quarter}
+export async function calcForHighRisk(ctx: MyContext): Promise<void> {
+  let startingCapital: number;
+  let endingCapital: number = 0;
+  let managementFee: number = 0;
+  const { commissions, quarter, year } = ctx.session;
+  let result: number | { finalAmount: number; managementFee: number; newROI: number };
+
+  await messageAdmins('High Risk - Started');
+
+  const clients = await HighRiskAccounts.find();
+  for (const client of clients) {
+    const user = await Users.findOne({ _id: client.user_id });
+    let roi = ctx.session.roi;
+    if (user && client.current_balance > 0) {
+      startingCapital = client.current_balance;
+      if (commissions === false) {
+        result = ROICalcForAdmin(roi, startingCapital);
+        endingCapital = result;
+      } else if (commissions === true) {
+        result = ROICalcForClient(user.username, roi, startingCapital);
+        managementFee += result.managementFee;
+        roi = result.newROI;
+        endingCapital = result.finalAmount;
+      }
+      const quarterRecord = await Quarters.create({
+        user_id: user._id,
+        account_id: client._id,
+        year,
+        quarter,
+        roi: parseFloat((roi / 100).toFixed(4)),
+        commissions,
+        starting_capital: parseFloat(startingCapital.toFixed(2)),
+        ending_capital: parseFloat(endingCapital.toFixed(2))
+      });
+
+      if (quarterRecord) {
+        client.current_balance = quarterRecord.ending_capital;
+        await client.save();
+        let reply = await ctx.reply(`Successful Entry for ${user.username}`);
+        messageIds.push(reply.message_id);
+        reply = await bot.api.sendMessage(
+          user.chat_id,
+          `Quarterly Performance Update for Q${ctx.session.quarter}
 
 A whole 3 months has passed by and we are done for the quarter.
 Kindly log in and check the latest results.
 
 Once again, thank you for your patronage.
-            `
-          );
-          trackMessage(Number(user.chat_id), [reply.message_id]);
-        }
+          `
+        );
+        trackMessage(Number(user.chat_id), [reply.message_id]);
       }
     }
-    let reply = await ctx.reply('Check db to confirm. Done');
-    messageIds.push(reply.message_id);
-    reply = await bot.api.sendMessage(settings.adminIds.chatId1, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
-    trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+  }
+  await messageAdmins(`Management Fee for this quarter = ${formatNumber(managementFee)}.`);
 
-    reply = await bot.api.sendMessage(settings.adminIds.chatId2, `Management Fee for this quarter = ${formatNumber(managementFee)}.`);
-    trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+  if (managementFee > 0) {
+    const buffer = await HinBuffer.find();
+    buffer[0].amount += managementFee;
+    await buffer[0].save();
+    await messageAdmins('Buffer updated');
+  }
+
+  await messageAdmins('High Risk - Done');
+}
+
+export async function calcForMediumRisk(): Promise<void> {
+  let result: number;
+
+  await messageAdmins('Medium Risk - Started');
+
+  const clients = await MediumRiskAccounts.find({ status: statusType.ACTIVE });
+  for (const client of clients) {
+    const user = await Users.findOne({ _id: client.user_id });
+    const roi = 25;
+    if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
+      result = ROICalcForAdmin(roi, client.initial_balance);
+      client.current_balance += result - client.initial_balance;
+      client.quarters += 1;
+
+      if (client.quarters >= 4) {
+        client.status = statusType.COMPLETED;
+        client.completion_date = new Date();
+
+        await messageAdmins(`${user.first_name}'s Medium Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
+        const reply = await bot.api.sendMessage(
+          user.chat_id,
+          'Your Medium Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
+        );
+        trackMessage(Number(user.chat_id), [reply.message_id]);
+      }
+      await client.save();
+    }
+  }
+
+  await messageAdmins('Medium Risk - Done');
+}
+
+export async function calcForLowRisk(): Promise<void> {
+  let result: number;
+
+  await messageAdmins('Low Risk - Started');
+
+  const clients = await LowRiskAccounts.find({ status: statusType.ACTIVE });
+  for (const client of clients) {
+    const user = await Users.findOne({ _id: client.user_id });
+    const roi = 7.5;
+    if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
+      result = ROICalcForAdmin(roi, client.initial_balance);
+      client.current_balance += result - client.initial_balance;
+      client.quarters += 1;
+
+      if (client.quarters >= 4) {
+        client.status = statusType.COMPLETED;
+        client.completion_date = new Date();
+
+        await messageAdmins(`${user.first_name}'s Low Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
+        const reply = await bot.api.sendMessage(
+          user.chat_id,
+          'Your Low Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
+        );
+        trackMessage(Number(user.chat_id), [reply.message_id]);
+      }
+      await client.save();
+    }
+  }
+
+  await messageAdmins('Low Risk - Done');
+}
+
+export const makeAnEntry = async (ctx: MyContext): Promise<void> => {
+  try {
+    const userId = ctx.message?.chat.id;
+    await calcForHighRisk(ctx);
+    await calcForMediumRisk();
+    await calcForLowRisk();
+
+    const reply = await ctx.reply('Check db to confirm. Done');
+    messageIds.push(reply.message_id);
 
     if (userId) trackMessage(userId as number, messageIds);
     messageIds.length = 0;
@@ -288,7 +375,7 @@ Once again, thank you for your patronage.
 
 export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
   const { message } = ctx;
-  
+
   if (message) {
     let receipt: { file: string; type: FileType } | null = null;
     if (message.photo) {
@@ -307,23 +394,23 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
       if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
         account = await HighRiskAccounts.findOne({ user_id: userData._id });
       } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
-        account = await MediumRiskAccounts.findOne({ user_id: userData._id, status: "active" });
+        account = await MediumRiskAccounts.findOne({ user_id: userData._id, status: 'active' });
         if (!account) {
           account = await MediumRiskAccounts.create({ user_id: userData._id });
         } else {
           if (checkDeposits()) {
             account = await MediumRiskAccounts.create({ user_id: userData._id });
           }
-        } 
+        }
       } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
-        account = await LowRiskAccounts.findOne({ user_id: userData._id, status: "active" });
+        account = await LowRiskAccounts.findOne({ user_id: userData._id, status: 'active' });
         if (!account) {
           account = await LowRiskAccounts.create({ user_id: userData._id });
         } else {
           if (checkDeposits()) {
             account = await LowRiskAccounts.create({ user_id: userData._id });
           }
-        } 
+        }
       }
       if (account) {
         const transactionRecord = await Transactions.create({
@@ -366,9 +453,7 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
   }
 }
 
-
 export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promise<void> {
-  
   const highRiskAccount = await HighRiskAccounts.findOne({ user_id: userData._id });
   const mediumRiskAccount = await MediumRiskAccounts.findOne({ user_id: userData._id });
   const lowRiskAccount = await LowRiskAccounts.findOne({ user_id: userData._id });
@@ -401,64 +486,64 @@ export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promi
 
 export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
   const { message } = ctx;
- 
+
   if (message) {
-      const amount = message.text;
-      if (amount && !isNaN(Number(amount))) {
-        if (Number(amount) < 10000) {
-          const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum withdrawal amount is  ₦10,000.`, { parse_mode: 'HTML' });
-          messageIds.push(reply.message_id);
-        } else {
-          let account: any;
-          if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
-            account = await HighRiskAccounts.findOne({ user_id: userData._id });
-          } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
-            account = await MediumRiskAccounts.findOne({ user_id: userData._id });
-            if (await daysLeftInPlan(ctx, account?.start_date)) {
-              return;
-            }
-          } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
-            account = await LowRiskAccounts.findOne({ user_id: userData._id });
-            if (await daysLeftInPlan(ctx, account?.start_date)) {
-              return;
-            }
+    const amount = message.text;
+    if (amount && !isNaN(Number(amount))) {
+      if (Number(amount) < 10000) {
+        const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum withdrawal amount is  ₦10,000.`, { parse_mode: 'HTML' });
+        messageIds.push(reply.message_id);
+      } else {
+        let account: any;
+        if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+          account = await HighRiskAccounts.findOne({ user_id: userData._id });
+        } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+          account = await MediumRiskAccounts.findOne({ user_id: userData._id });
+          if (await daysLeftInPlan(ctx, account?.start_date)) {
+            return;
           }
-          if (account && Number(amount) <= account.current_balance) {
-            await Transactions.create({
-              user_id: userData._id,
-              account_id: account._id,
-              type: TransactionType.WITHDRAWAL,
-              amount: Number(amount)
-            });
-            ctx.session.route = '';
-            let reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
-            messageIds.push(reply.message_id);
-  
-            reply = await bot.api.sendMessage(
-              settings.adminIds.chatId1,
-              `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
-            );
-            trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
-  
-            reply = await bot.api.sendMessage(
-              settings.adminIds.chatId2,
-              `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
-            );
-            trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
-          } else {
-            const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
-              parse_mode: 'HTML'
-            });
-            messageIds.push(reply.message_id);
+        } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+          account = await LowRiskAccounts.findOne({ user_id: userData._id });
+          if (await daysLeftInPlan(ctx, account?.start_date)) {
+            return;
           }
         }
-      } else if (message.text === '/stop') {
-        await handleStop(ctx, messageIds);
-      } else {
-        const reply = await ctx.reply('<b>Invalid Amount</b> 📝\n\nPlease enter a valid amount to proceed.', { parse_mode: 'HTML' });
-        messageIds.push(reply.message_id);
+        if (account && Number(amount) <= account.current_balance) {
+          await Transactions.create({
+            user_id: userData._id,
+            account_id: account._id,
+            type: TransactionType.WITHDRAWAL,
+            amount: Number(amount)
+          });
+          ctx.session.route = '';
+          let reply = await ctx.reply(`Okay. Richard or Tolu will reach out to you soon.`);
+          messageIds.push(reply.message_id);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId1,
+            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
+
+          reply = await bot.api.sendMessage(
+            settings.adminIds.chatId2,
+            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+          );
+          trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
+        } else {
+          const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
+            parse_mode: 'HTML'
+          });
+          messageIds.push(reply.message_id);
+        }
       }
+    } else if (message.text === '/stop') {
+      await handleStop(ctx, messageIds);
+    } else {
+      const reply = await ctx.reply('<b>Invalid Amount</b> 📝\n\nPlease enter a valid amount to proceed.', { parse_mode: 'HTML' });
+      messageIds.push(reply.message_id);
     }
+  }
 }
 
 export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[]): Promise<void> {
@@ -466,13 +551,16 @@ export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[
   messageIds.push(reply.message_id);
 }
 
-const daysLeftInPlan = async (ctx: MyContext, startDate: Date) => {
+const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean> => {
   const currentDate = new Date();
   const difference = currentDate.getTime() - startDate.getTime();
   const yearInMilliseconds = 31536000000;
   if (difference < yearInMilliseconds) {
     const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
-    const reply = await ctx.reply(`You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`, { parse_mode: 'HTML' });
+    const reply = await ctx.reply(
+      `You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`,
+      { parse_mode: 'HTML' }
+    );
     messageIds.push(reply.message_id);
     await handleStop(ctx, messageIds);
     return true;
@@ -480,11 +568,11 @@ const daysLeftInPlan = async (ctx: MyContext, startDate: Date) => {
   return false;
 };
 
-const checkDeposits = ()=> {
+const checkDeposits = (): boolean => {
   const currentDate = new Date();
-  const currentMonth = currentDate.getMonth() + 1; 
+  const currentMonth = currentDate.getMonth() + 1;
 
-  const quarterStartMonths = [1, 4, 7, 10]; 
+  const quarterStartMonths = [1, 4, 7, 10];
 
   for (const month of quarterStartMonths) {
     if (currentMonth === month) {
@@ -494,7 +582,7 @@ const checkDeposits = ()=> {
   return false;
 };
 
-export function getAccountDates() {
+export function getAccountDates(): { startDate: Date; endDate: Date } {
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   let startMonth;
@@ -510,10 +598,7 @@ export function getAccountDates() {
     startMonth = 1;
   }
 
-  const startDate =
-    currentMonth === 10
-      ? new Date(now.getFullYear() + 1, 0, 1)
-      : new Date(now.getFullYear(), startMonth - 1, 1);
+  const startDate = currentMonth === 10 ? new Date(now.getFullYear() + 1, 0, 1) : new Date(now.getFullYear(), startMonth - 1, 1);
 
   const endDate = new Date(startDate);
   endDate.setFullYear(endDate.getFullYear() + 1);

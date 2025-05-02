@@ -1,5 +1,5 @@
 import { CommandContext } from 'grammy';
-import { getNextQuarterMonth, handleStop, isLoggedIn, MyContext, trackMessage } from '../helpers';
+import { getNextQuarterMonth, isLoggedIn, MyContext, trackMessage } from '../helpers';
 
 const messageIds: number[] = [];
 
@@ -9,7 +9,7 @@ export const handleDeposit = async (ctx: CommandContext<MyContext>): Promise<voi
 
   if (isLoggedIn(ctx.session.token)) {
     await getNextQuarterMonth(ctx, messageIds);
-    
+
     const reply = await ctx.reply('Choose plan to deposit into: ', {
       reply_markup: {
         inline_keyboard: [

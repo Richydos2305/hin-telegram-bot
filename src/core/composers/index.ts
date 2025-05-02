@@ -10,8 +10,6 @@ import { Quarters } from '../models/quarters';
 import { ITransactions, Transactions } from '../models/transactions';
 import { Users } from '../models/users';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
-import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
-import { LowRiskAccounts } from '../models/lowRiskAccounts';
 
 const composer = new Composer<MyContext>();
 const messageIds: number[] = [];
