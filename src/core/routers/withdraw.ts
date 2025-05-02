@@ -1,10 +1,5 @@
 import { Router } from '@grammyjs/router';
-import { confirmWithdrawal, formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
-import { settings } from '../config/application';
-import { TransactionType } from '../interfaces';
-import { HighRiskAccounts } from '../models/highRiskAccounts';
-import { Transactions } from '../models/transactions';
-import { bot } from '../..';
+import { confirmWithdrawal, MyContext, trackMessage } from '../helpers';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];

@@ -9,7 +9,23 @@ export const handleDeposit = async (ctx: CommandContext<MyContext>): Promise<voi
 
   if (isLoggedIn(ctx.session.token)) {
     await getNextQuarterMonth(ctx, messageIds);
-    ctx.session.route = 'choosePlanForDeposit';
+
+    const reply = await ctx.reply('Choose plan to deposit into: ', {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: 'HIGH RISK', callback_data: 'high_risk_deposit' },
+            { text: 'MEDIUM RISK', callback_data: 'medium_risk_deposit' }
+          ],
+          [
+            { text: 'LOW RISK', callback_data: 'low_risk_deposit' },
+            { text: 'CANCEL', callback_data: 'cancel' }
+          ]
+        ]
+      }
+    });
+    messageIds.push(reply.message_id);
+    ctx.session.route = '';
   } else {
     const reply = await ctx.reply('**Login Required** 🔒\n\nUse /login to access this feature.');
     messageIds.push(reply.message_id);

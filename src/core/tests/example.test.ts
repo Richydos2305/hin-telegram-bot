@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
-import { TransactionType, UserPlan } from "../interfaces";
-import { Transactions,  } from "../models/transactions";
+import mongoose from 'mongoose';
+import { TransactionType, UserPlan } from '../interfaces';
+import { Transactions } from '../models/transactions';
 
 function add(a: number, b: number): number {
   return a + b;
@@ -50,4 +50,3 @@ describe('Deposit and Withdrawal', () => {
     expect(savedTransaction?.plan).toBe(UserPlan.LOW_RISK);
   });
 });
-

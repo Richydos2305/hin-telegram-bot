@@ -24,7 +24,6 @@ const TransactionSchema: Schema = new Schema(
     },
     account_id: {
       type: Schema.Types.ObjectId,
-      ref: 'Accounts',
       required: true
     },
     type: {
