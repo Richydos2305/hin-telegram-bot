@@ -178,7 +178,7 @@ composer.on('callback_query', async (ctx) => {
       ctx.session.route = 'depositRequestInProgress';
     } else if (callbackData === 'medium_risk_deposit') {
       const reply = await ctx.reply(
-        `<b>Meduim-Risk Plan</b> 📈\n\n<b>Duration</b>: 1 Year\n<b>Expected Returns</b>: 100%\n<b>Capital Guarantee</b>: 50%\n<b>Description</b>: A balanced option for steady growth. Offers strong returns with partial protection of your capital. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
+        `<b>Medium-Risk Plan</b> 📈\n\n<b>Duration</b>: 1 Year\n<b>Expected Returns</b>: 100%\n<b>Capital Guarantee</b>: 50%\n<b>Description</b>: A balanced option for steady growth. Offers strong returns with partial protection of your capital. \n\n<b>Contact Tolu or Richard for any further questions</b>.\n\nIf you want to cancel, type /stop\n\nInput amount to deposit in ₦ (Naira):`,
         { parse_mode: 'HTML' }
       );
       messageIds.push(reply.message_id);
