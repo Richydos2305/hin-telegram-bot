@@ -14,7 +14,7 @@ router.route('withdrawalRequestInProgress', async (ctx) => {
   const { userData } = ctx.session;
   const userId = message?.chat.id;
   messageIds.push(message?.message_id as number);
-  await confirmWithdrawal(ctx, messageIds, userData, message);
+  await confirmWithdrawal(ctx, messageIds, userData);
   if (userId) trackMessage(userId as number, messageIds);
   messageIds.length = 0;
 });

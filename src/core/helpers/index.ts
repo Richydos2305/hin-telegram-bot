@@ -11,6 +11,7 @@ import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, Trans
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { User } from '../interfaces/models';
 
 const messageIds: number[] = [];
 
@@ -285,7 +286,8 @@ Once again, thank you for your patronage.
   }
 };
 
-export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any, message: any): Promise<void> {
+export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
+  const { message } = ctx;
   
   if (message) {
     let receipt: { file: string; type: FileType } | null = null;
@@ -305,16 +307,23 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
       if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
         account = await HighRiskAccounts.findOne({ user_id: userData._id });
       } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
-        account = await MediumRiskAccounts.findOne({ user_id: userData._id });
-        //Yet to create a function that will check the date of the last deposit and compare it with the current date to see the lenght if we have not taken our first trade yet then the new money should be added into the account else another meduim risk account will be created.
+        account = await MediumRiskAccounts.findOne({ user_id: userData._id, status: "active" });
         if (!account) {
           account = await MediumRiskAccounts.create({ user_id: userData._id });
-        }
+        } else {
+          if (checkDeposits()) {
+            account = await MediumRiskAccounts.create({ user_id: userData._id });
+          }
+        } 
       } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
-        account = await LowRiskAccounts.findOne({ user_id: userData._id });
+        account = await LowRiskAccounts.findOne({ user_id: userData._id, status: "active" });
         if (!account) {
           account = await LowRiskAccounts.create({ user_id: userData._id });
-        }
+        } else {
+          if (checkDeposits()) {
+            account = await LowRiskAccounts.create({ user_id: userData._id });
+          }
+        } 
       }
       if (account) {
         const transactionRecord = await Transactions.create({
@@ -325,8 +334,8 @@ export async function confirmDeposit(ctx: MyContext, messageIds: number[], userD
           plan: ctx.session.userPlan,
           receipt
         });
+
         if (transactionRecord) {
-          console.log("Transaction record found");
           ctx.session.route = '';
           let reply = await ctx.reply(
             `<b>Deposit Request!</b> 📈\n\nYour deposit request has been successfully processed.\nPlease allow 1-2 business days for the funds to reflect in your account. 🕒`,
@@ -390,7 +399,8 @@ export async function checkSubscribedPlans(ctx: MyContext, userData: any): Promi
   }
 }
 
-export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], userData: any, message: any): Promise<void> {
+export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
+  const { message } = ctx;
  
   if (message) {
       const amount = message.text;
@@ -451,7 +461,6 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
     }
 }
 
-
 export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[]): Promise<void> {
   const reply = await ctx.reply('<b>Withdrawal Amount</b> 💸\n\nPlease enter the amount you want to withdraw in ₦ (Naira)', { parse_mode: 'HTML' });
   messageIds.push(reply.message_id);
@@ -470,3 +479,44 @@ const daysLeftInPlan = async (ctx: MyContext, startDate: Date) => {
   }
   return false;
 };
+
+const checkDeposits = ()=> {
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1; 
+
+  const quarterStartMonths = [1, 4, 7, 10]; 
+
+  for (const month of quarterStartMonths) {
+    if (currentMonth === month) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export function getAccountDates() {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  let startMonth;
+
+  if (currentMonth % 3 === 0) {
+    startMonth = currentMonth + 1;
+  } else if ((currentMonth + 1) % 3 === 0) {
+    startMonth = currentMonth + 2;
+  } else {
+    if (currentMonth !== 10) {
+      startMonth = currentMonth + 3;
+    }
+    startMonth = 1;
+  }
+
+  const startDate =
+    currentMonth === 10
+      ? new Date(now.getFullYear() + 1, 0, 1)
+      : new Date(now.getFullYear(), startMonth - 1, 1);
+
+  const endDate = new Date(startDate);
+  endDate.setFullYear(endDate.getFullYear() + 1);
+
+  return { startDate, endDate };
+}

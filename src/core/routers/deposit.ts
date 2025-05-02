@@ -46,7 +46,7 @@ router.route('depositRequestConfirmation', async (ctx) => {
   const userId = message?.chat.id;
   messageIds.push(message?.message_id as number);
 
-  await confirmDeposit(ctx, messageIds, userData, message);
+  await confirmDeposit(ctx, messageIds, userData);
 
   if (userId) trackMessage(userId as number, messageIds);
   messageIds.length = 0;
