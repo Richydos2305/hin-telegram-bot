@@ -536,19 +536,19 @@ export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[
 }
 
 const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean> => {
-  // const currentDate = new Date();
-  // const difference = currentDate.getTime() - startDate.getTime();
-  // const yearInMilliseconds = 31536000000;
-  // if (difference < yearInMilliseconds) {
-  //   const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
-  //   const reply = await ctx.reply(
-  //     `You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`,
-  //     { parse_mode: 'HTML' }
-  //   );
-  //   messageIds.push(reply.message_id);
-  //   await handleStop(ctx, messageIds);
-  //   return true;
-  // }
+  const currentDate = new Date();
+  const difference = currentDate.getTime() - startDate.getTime();
+  const yearInMilliseconds = 31536000000;
+  if (difference < yearInMilliseconds) {
+    const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
+    const reply = await ctx.reply(
+      `You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`,
+      { parse_mode: 'HTML' }
+    );
+    messageIds.push(reply.message_id);
+    await handleStop(ctx, messageIds);
+    return true;
+  }
   return false;
 };
 
@@ -590,7 +590,7 @@ export function getAccountDates(): { startDate: Date; endDate: Date } {
   return { startDate, endDate };
 }
 
-export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<string | void> {
+export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<{ data: any; response: string }> {
   if (userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
     const buffer = await HinBuffer.findOne();
     if (buffer) {
@@ -599,7 +599,7 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
           parse_mode: 'HTML'
         });
         messageIds.push(reply.message_id);
-        return 'false';
+        return { data: buffer, response: 'false' };
       }
       const availableAmount = buffer.amount - buffer.amount_allocated;
 
@@ -609,7 +609,7 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
             parse_mode: 'HTML'
           });
           messageIds.push(reply.message_id);
-          return 'Try again';
+          return { data: buffer, response: 'Try again' };
         }
       } else if (userPlan === UserPlan.LOW_RISK) {
         if (amount > availableAmount) {
@@ -617,17 +617,18 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
             parse_mode: 'HTML'
           });
           messageIds.push(reply.message_id);
-          return 'Try again';
+          return { data: buffer, response: 'Try again' };
         }
       }
     }
     console.log('Buffer check passed');
+    return { data: buffer, response: 'true' };
   }
+  return { data: null, response: 'Not applicable' };
 }
 
 export async function updateBufferDeposits(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<void> {
-  const buffer = await HinBuffer.findOne();
-  await checkBuffer(ctx, messageIds, amount, userPlan);
+  const buffer = (await checkBuffer(ctx, messageIds, amount, userPlan)).data;
   if (buffer) {
     if (userPlan === UserPlan.MEDIUM_RISK) {
       buffer.amount_allocated += amount / 2;

@@ -17,7 +17,7 @@ router.route('depositRequestInProgress', async (ctx) => {
         const reply = await ctx.reply(`<b>Invalid Amount</b> 📝\n\nMinimum deposit amount is  ₦30,000.`, { parse_mode: 'HTML' });
         messageIds.push(reply.message_id);
       } else {
-        const bufferResponse = await checkBuffer(ctx, messageIds, Number(amount), ctx.session.userPlan as UserPlan);
+        const bufferResponse = (await checkBuffer(ctx, messageIds, Number(amount), ctx.session.userPlan as UserPlan)).response;
         if (bufferResponse === 'false') {
           await handleStop(ctx, messageIds);
           return;
