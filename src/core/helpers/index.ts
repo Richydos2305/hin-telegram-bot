@@ -594,7 +594,7 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
 
     const buffer = await HinBuffer.findOne();
     if (buffer) {
-    if ((buffer.amount) * 2 == buffer.amount_allocated) {
+    if (buffer.amount_allocated >= buffer.amount) {
       const reply = await ctx.reply('<b>No more deposits can be made at this time.</b> 🚫', {
         parse_mode: 'HTML'
       });
