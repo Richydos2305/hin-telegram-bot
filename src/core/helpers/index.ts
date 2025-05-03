@@ -504,6 +504,7 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
             user_id: userData._id,
             account_id: account._id,
             type: TransactionType.WITHDRAWAL,
+            plan: ctx.session.userPlan,
             amount: Number(amount)
           });
           ctx.session.route = '';
@@ -511,7 +512,7 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
           messageIds.push(reply.message_id);
 
           await messageAdmins(
-            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))} from the ${ctx.session.userPlan} Risk Plan. \nKindly log in as an admin to confirm this.`
           );
         } else {
           const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
@@ -535,19 +536,19 @@ export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[
 }
 
 const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean> => {
-  const currentDate = new Date();
-  const difference = currentDate.getTime() - startDate.getTime();
-  const yearInMilliseconds = 31536000000;
-  if (difference < yearInMilliseconds) {
-    const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
-    const reply = await ctx.reply(
-      `You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`,
-      { parse_mode: 'HTML' }
-    );
-    messageIds.push(reply.message_id);
-    await handleStop(ctx, messageIds);
-    return true;
-  }
+  // const currentDate = new Date();
+  // const difference = currentDate.getTime() - startDate.getTime();
+  // const yearInMilliseconds = 31536000000;
+  // if (difference < yearInMilliseconds) {
+  //   const remainingDays = Math.ceil((yearInMilliseconds - difference) / 86400000);
+  //   const reply = await ctx.reply(
+  //     `You have ${remainingDays} days left to withdraw from this plan. \n\nConsider withdrawing from another plan or wait for the remaining days to expire.`,
+  //     { parse_mode: 'HTML' }
+  //   );
+  //   messageIds.push(reply.message_id);
+  //   await handleStop(ctx, messageIds);
+  //   return true;
+  // }
   return false;
 };
 
@@ -589,87 +590,77 @@ export function getAccountDates(): { startDate: Date; endDate: Date } {
   return { startDate, endDate };
 }
 
-export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<String | void> {
-  if(userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
-
+export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<string | void> {
+  if (userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
     const buffer = await HinBuffer.findOne();
     if (buffer) {
-    if (buffer.amount_allocated >= buffer.amount) {
-      const reply = await ctx.reply('<b>No more deposits can be made at this time.</b> 🚫', {
-        parse_mode: 'HTML'
-      });
-      messageIds.push(reply.message_id);
-      return "false";
-    }
-    let availableAmount = buffer.amount - buffer.amount_allocated;
+      if (buffer.amount_allocated >= buffer.amount) {
+        const reply = await ctx.reply('<b>No more deposits can be made at this time.</b> 🚫', {
+          parse_mode: 'HTML'
+        });
+        messageIds.push(reply.message_id);
+        return 'false';
+      }
+      const availableAmount = buffer.amount - buffer.amount_allocated;
 
-    if (userPlan === UserPlan.MEDIUM_RISK) {
-      if (amount > (availableAmount * 2)) {
-        const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount * 2)}`, {
-          parse_mode: 'HTML'
-        });
-        messageIds.push(reply.message_id);
-        return "Try again";
+      if (userPlan === UserPlan.MEDIUM_RISK) {
+        if (amount > availableAmount * 2) {
+          const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount * 2)}`, {
+            parse_mode: 'HTML'
+          });
+          messageIds.push(reply.message_id);
+          return 'Try again';
+        }
+      } else if (userPlan === UserPlan.LOW_RISK) {
+        if (amount > availableAmount) {
+          const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount)}`, {
+            parse_mode: 'HTML'
+          });
+          messageIds.push(reply.message_id);
+          return 'Try again';
+        }
       }
     }
-    else if (userPlan === UserPlan.LOW_RISK) {
-      if (amount > availableAmount) {
-        const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount / 2)}`, {
-          parse_mode: 'HTML'
-        });
-        messageIds.push(reply.message_id);
-        return "Try again";
-      }
-    }
-  }
-  else if(!userPlan) {
-    const reply = await ctx.reply('<b>Invalid Plan</b> 🚫\n\nPlease select a valid plan to proceed.', {
-      parse_mode: 'HTML'
-    });
-    messageIds.push(reply.message_id);
-    ctx.session.route = 'choosePlanForDeposit';
-  }
-  console.log('Buffer check passed');
+    console.log('Buffer check passed');
   }
 }
 
 export async function updateBufferDeposits(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<void> {
   const buffer = await HinBuffer.findOne();
   await checkBuffer(ctx, messageIds, amount, userPlan);
-  if (userPlan === UserPlan.MEDIUM_RISK) {
-    if (buffer) {
+  if (buffer) {
+    if (userPlan === UserPlan.MEDIUM_RISK) {
       buffer.amount_allocated += amount / 2;
-      await buffer.save();
-    }
-  }
-  else if (userPlan === UserPlan.LOW_RISK) {
-    if (buffer) {
+    } else if (userPlan === UserPlan.LOW_RISK) {
       buffer.amount_allocated += amount;
-      await buffer.save();
     }
-  } 
+    await buffer.save();
+  }
   const reply = await ctx.reply(`Buffer updated successfully.`, {
     parse_mode: 'HTML'
   });
   messageIds.push(reply.message_id);
 }
 
-
 export async function updateBufferWithdrawal(ctx: MyContext, amount: number, userPlan: UserPlan): Promise<void> {
-  if (userPlan === UserPlan.MEDIUM_RISK) {
   const buffer = await HinBuffer.findOne();
-  if (buffer) {
-      buffer.amount_allocated -= amount/2;
+  if (userPlan === UserPlan.MEDIUM_RISK) {
+    if (buffer) {
+      buffer.amount_allocated -= amount / 2;
       await buffer.save();
-      console.log(`Buffer updated successfully. removed ${amount / 2} from allocated amount.`);
+      const reply = await ctx.reply(`Buffer updated successfully. removed ${formatNumber(amount / 2)} from allocated amount.`, {
+        parse_mode: 'HTML'
+      });
+      messageIds.push(reply.message_id);
     }
-    ctx.session.route = 'transactionRequestReceiptUpload';
   } else if (userPlan === UserPlan.LOW_RISK) {
-    const buffer = await HinBuffer.findOne();
     if (buffer) {
       buffer.amount_allocated -= amount;
       await buffer.save();
-      console.log(`Buffer updated successfully. removed ${amount} from allocated amount.`);
+      const reply = await ctx.reply(`Buffer updated successfully. removed ${formatNumber(amount)} from allocated amount.`, {
+        parse_mode: 'HTML'
+      });
+      messageIds.push(reply.message_id);
     }
   }
 }

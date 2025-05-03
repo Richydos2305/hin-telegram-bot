@@ -9,7 +9,6 @@ import { bot } from '../..';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 
-
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
 
@@ -142,12 +141,11 @@ router.route('transactionRequestInProgress', async (ctx) => {
       account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
       account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
-    } else if (ctx.session.userPlan === UserPlan.LOW_RISK){ 
+    } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
       account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
     }
     const user = await Users.findById(currentTransaction.transaction.user_id);
     console.log(`${currentTransaction.transaction.type} Request: ${message.text} Plan: ${currentTransaction.transaction.plan}.`);
-    
     if (message.text === TransactionStatus.APPROVED && account && currentTransaction.transaction.type === TransactionType.DEPOSIT) {
       await updateBufferDeposits(ctx, messageIds, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
       account.current_balance += currentTransaction.transaction.amount;
@@ -170,7 +168,7 @@ router.route('transactionRequestInProgress', async (ctx) => {
     } else if (message.text === TransactionStatus.APPROVED && account && currentTransaction.transaction.type === TransactionType.WITHDRAWAL) {
       const reply = await ctx.reply('Okay. Upload the Receipt as a response to this message and the user will be notified');
       messageIds.push(reply.message_id);
-      await updateBufferWithdrawal(ctx, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
+      ctx.session.route = 'transactionRequestReceiptUpload';
     } else if (
       message.text === TransactionStatus.DENIED &&
       account &&
@@ -224,7 +222,12 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
         status: TransactionStatus.APPROVED,
         receipt
       });
-      const account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+      let account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+      if (!account) {
+        account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+      } else if (!account) {
+        account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+      }
 
       if (account) {
         account.current_balance = parseFloat((account.current_balance - currentTransaction.transaction.amount).toFixed(2));
@@ -235,6 +238,7 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
       }
       let reply = await ctx.reply('Okay. Will let the user know it has been approved');
       messageIds.push(reply.message_id);
+      await updateBufferWithdrawal(ctx, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
 
       const user = await Users.findById(currentTransaction.transaction.user_id);
       if (user) {
