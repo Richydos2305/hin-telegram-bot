@@ -601,7 +601,7 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
       messageIds.push(reply.message_id);
       return "false";
     }
-    let availableAmount = (((buffer.amount) * 2) - (buffer.amount_allocated)) * 2;
+    let availableAmount = buffer.amount - buffer.amount_allocated;
 
     if (userPlan === UserPlan.MEDIUM_RISK) {
       if (amount > availableAmount) {
