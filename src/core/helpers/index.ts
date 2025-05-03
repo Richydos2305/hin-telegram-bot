@@ -613,7 +613,7 @@ export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: 
       }
     }
     else if (userPlan === UserPlan.LOW_RISK) {
-      if (amount > availableAmount / 2) {
+      if (amount > availableAmount) {
         const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount / 2)}`, {
           parse_mode: 'HTML'
         });
