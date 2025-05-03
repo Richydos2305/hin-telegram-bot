@@ -148,16 +148,31 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  let nextYear = year;
+  let nextYear = currentYear;
   let nextStartMonth = '';
 
   if (quarter === 4) {
-    if (currentYear > year) {
-      nextStartMonth = QuarterBeginningMonths.Q2;
-    } else {
+    if (!(currentYear > year)) {
       nextStartMonth = QuarterBeginningMonths.Q1;
+      nextYear = year + 1;
+    } else {
+      nextStartMonth = quarterMap.get(quarter) || QuarterBeginningMonths.Q2;
+
+      const monthNumber = quarterStartMonths.get(nextStartMonth) || 1;
+
+      if (currentMonth >= monthNumber) {
+        nextStartMonth =
+          {
+            April: QuarterBeginningMonths.Q3,
+            July: QuarterBeginningMonths.Q4,
+            October: QuarterBeginningMonths.Q1
+          }[nextStartMonth] || QuarterBeginningMonths.Q2;
+
+        if (nextStartMonth === QuarterBeginningMonths.Q1) {
+          nextYear += 1;
+        }
+      }
     }
-    nextYear = year + 1;
   } else {
     nextStartMonth = quarterMap.get(quarter) || QuarterBeginningMonths.Q2;
 

@@ -229,12 +229,12 @@ describe('getNextQuarterMonth', () => {
   let messageIds: number[];
 
   beforeEach(() => {
+    jest.clearAllMocks();
+    jest.resetAllMocks();
     messageIds = [];
     mockCtx = {
       reply: jest.fn().mockResolvedValue({ message_id: 777 })
-    } as any;
-
-    jest.clearAllMocks();
+    } as unknown as MyContext;
   });
 
   it('should log and return when no quarter data is found', async () => {
@@ -257,33 +257,80 @@ describe('getNextQuarterMonth', () => {
   });
 
   it('should calculate next start month and reply with correct message', async () => {
-    (Quarters.findOne as jest.Mock).mockReturnValue({
-      limit: () => ({
-        sort: () => Promise.resolve({ quarter: 3, year: 2024 })
+    let year = new Date().getFullYear();
+    (Quarters.findOne as jest.Mock)
+      .mockReturnValueOnce({
+        limit: () => ({
+          sort: () => Promise.resolve({ quarter: 1, year })
+        })
       })
-    });
+      .mockReturnValueOnce({
+        limit: () => ({
+          sort: () => Promise.resolve({ quarter: 2, year })
+        })
+      })
+      .mockReturnValueOnce({
+        limit: () => ({
+          sort: () => Promise.resolve({ quarter: 1, year: 2024 })
+        })
+      });
+
+    const getFullYearSpy = jest.spyOn(global.Date.prototype, 'getFullYear').mockReturnValue(2025);
+    const getFullMonthSpy = jest.spyOn(global.Date.prototype, 'getMonth').mockReturnValueOnce(2).mockReturnValueOnce(4).mockReturnValueOnce(4);
 
     await getNextQuarterMonth(mockCtx, messageIds);
+    await getNextQuarterMonth(mockCtx, messageIds);
+    await getNextQuarterMonth(mockCtx, messageIds);
 
-    expect(mockCtx.reply).toHaveBeenCalledWith(expect.stringContaining('If this request is approved it will take place from'), {
+    expect(mockCtx.reply).toHaveBeenNthCalledWith(1, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>April</b> ${year}.`, {
       parse_mode: 'HTML'
     });
-
+    expect(mockCtx.reply).toHaveBeenNthCalledWith(2, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> ${year}.`, {
+      parse_mode: 'HTML'
+    });
+    expect(mockCtx.reply).toHaveBeenNthCalledWith(3, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> ${year}.`, {
+      parse_mode: 'HTML'
+    });
     expect(messageIds).toContain(777);
+    getFullYearSpy.mockRestore();
+    getFullMonthSpy.mockRestore();
   });
 
   it('should increment year when quarter is 4', async () => {
-    (Quarters.findOne as jest.Mock).mockReturnValue({
-      limit: () => ({
-        sort: () => Promise.resolve({ quarter: 4, year: new Date().getFullYear() })
+    let year = new Date().getFullYear();
+
+    (Quarters.findOne as jest.Mock)
+      .mockReturnValueOnce({
+        limit: () => ({
+          sort: () => Promise.resolve({ quarter: 4, year: 2024 })
+        })
       })
-    });
+      .mockReturnValueOnce({
+        limit: () => ({
+          sort: () => Promise.resolve({ quarter: 4, year: 2023 })
+        })
+      })
+      .mockReturnValueOnce({
+        limit: () => ({
+          sort: () => Promise.resolve({ quarter: 4, year: 2024 })
+        })
+      });
+
+    jest.spyOn(global.Date.prototype, 'getFullYear').mockReturnValueOnce(2025).mockReturnValueOnce(2025).mockReturnValueOnce(2024);
 
     await getNextQuarterMonth(mockCtx, messageIds);
+    await getNextQuarterMonth(mockCtx, messageIds);
+    await getNextQuarterMonth(mockCtx, messageIds);
 
-    const [[messageText]] = (mockCtx.reply as jest.Mock).mock.calls;
-
-    expect(messageText).toMatch(/from <b>Q1<\/b> \d{4}/);
+    expect(mockCtx.reply).toHaveBeenNthCalledWith(1, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> 2025.`, {
+      parse_mode: 'HTML'
+    });
+    expect(mockCtx.reply).toHaveBeenNthCalledWith(2, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> 2025.`, {
+      parse_mode: 'HTML'
+    });
+    expect(mockCtx.reply).toHaveBeenNthCalledWith(3, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>January</b> 2025.`, {
+      parse_mode: 'HTML'
+    });
     expect(messageIds).toContain(777);
   });
 });
