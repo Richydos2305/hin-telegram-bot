@@ -1,5 +1,5 @@
 import { CommandContext } from 'grammy';
-import { MyContext, trackMessage } from '../helpers';
+import { MyContext, trackMessage } from '../helpers/helpers';
 
 const messageIds: number[] = [];
 

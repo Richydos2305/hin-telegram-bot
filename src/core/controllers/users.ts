@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Users, IUser } from '../models/users';
 import bcrypt from 'bcrypt';
-import { getAccessToken, handleError } from '../helpers';
+import { getAccessToken, handleError } from '../helpers/helpers';
 
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {

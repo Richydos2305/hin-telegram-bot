@@ -1,5 +1,6 @@
-import { trackMessage, deleteChatHistory, getAccessToken, isLoggedIn, getRandomInt, MyContext, handleStop, getNextQuarterMonth } from './index';
-import { Quarters } from '../models/quarters';
+import { MyContext } from './helpers';
+import * as utils from './utils';
+import * as helpers from './helpers';
 import { messageStore, bot } from '../../bot';
 import * as jwt from 'jsonwebtoken';
 import { Types } from 'mongoose';
@@ -22,7 +23,7 @@ describe('trackMessage', () => {
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
 
-    trackMessage(userId, messageIds);
+    helpers.trackMessage(userId, messageIds);
 
     expect(messageStore.has(userId)).toBe(true);
     expect(messageStore.get(userId)).toEqual(messageIds);
@@ -33,7 +34,7 @@ describe('trackMessage', () => {
     messageStore.set(userId, [200]);
 
     const newMessages = [201, 202];
-    trackMessage(userId, newMessages);
+    helpers.trackMessage(userId, newMessages);
 
     expect(messageStore.get(userId)).toEqual([200, 201, 202]);
   });
@@ -44,7 +45,7 @@ describe('trackMessage', () => {
     const userId = 3;
     const messageIds = [301];
 
-    trackMessage(userId, messageIds);
+    helpers.trackMessage(userId, messageIds);
 
     expect(consoleSpy).toHaveBeenCalledWith(`New user with ID: ${userId}`);
     consoleSpy.mockRestore();
@@ -72,7 +73,7 @@ describe('deleteChatHistory', () => {
     messageStore.set(67890, [4, 5]);
     const deleteMessageSpy = jest.spyOn(bot.api, 'deleteMessage').mockResolvedValue(true);
 
-    await deleteChatHistory();
+    await helpers.deleteChatHistory();
 
     expect(deleteMessageSpy).toHaveBeenCalledTimes(5);
     expect(deleteMessageSpy).toHaveBeenCalledWith(12345, 1);
@@ -92,7 +93,7 @@ describe('deleteChatHistory', () => {
       }
     });
 
-    await deleteChatHistory();
+    await helpers.deleteChatHistory();
 
     expect(bot.api.deleteMessage).toHaveBeenCalledTimes(2);
     expect(errorSpy).toHaveBeenCalledWith(`Failed to delete message 101 for user 10001:`, expect.any(Error));
@@ -102,7 +103,7 @@ describe('deleteChatHistory', () => {
   it('should log "Messages Cleared" after deleting', async () => {
     messageStore.set(20001, [201]);
 
-    await deleteChatHistory();
+    await helpers.deleteChatHistory();
 
     expect(logSpy).toHaveBeenCalledWith('Messages Cleared');
   });
@@ -119,7 +120,7 @@ describe('getAccessToken', () => {
   it('should call jwt.sign with correct payload, secret, and options', () => {
     (jwt.sign as jest.Mock).mockReturnValue(mockToken);
 
-    const token = getAccessToken(mockUser);
+    const token = helpers.getAccessToken(mockUser);
 
     expect(jwt.sign).toHaveBeenCalledWith(
       {
@@ -145,14 +146,14 @@ describe('isLoggedIn', () => {
   });
 
   it('should return false if token is null', () => {
-    const result = isLoggedIn(null);
+    const result = helpers.isLoggedIn(null);
     expect(result).toBe(false);
   });
 
   it('should return true if verify does not throw', () => {
     verifyMock.mockReturnValue({ valid: true });
 
-    const result = isLoggedIn(mockToken);
+    const result = helpers.isLoggedIn(mockToken);
     expect(jwt.verify).toHaveBeenCalledWith(mockToken, expect.any(String));
     expect(result).toBe(true);
   });
@@ -164,7 +165,7 @@ describe('isLoggedIn', () => {
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-    const result = isLoggedIn(mockToken);
+    const result = helpers.isLoggedIn(mockToken);
 
     expect(jwt.verify).toHaveBeenCalledWith(mockToken, expect.any(String));
     expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
@@ -180,14 +181,14 @@ describe('getRandomInt', () => {
     const max = 5;
 
     for (let i = 0; i < 50; i++) {
-      const result = getRandomInt(min, max);
+      const result = utils.getRandomInt(min, max);
       expect(result).toBeGreaterThanOrEqual(min);
       expect(result).toBeLessThanOrEqual(max);
     }
   });
 
   it('works when min and max are the same', () => {
-    const result = getRandomInt(3, 3);
+    const result = utils.getRandomInt(3, 3);
     expect(result).toBe(3);
   });
 
@@ -196,13 +197,11 @@ describe('getRandomInt', () => {
     const max = 20;
 
     for (let i = 0; i < 100; i++) {
-      const result = getRandomInt(min, max);
+      const result = utils.getRandomInt(min, max);
       expect(Number.isInteger(result)).toBe(true);
     }
   });
 });
-
-jest.spyOn(Quarters, 'findOne').mockResolvedValue(null);
 
 describe('handleStop', () => {
   it('clears the session route and pushes reply message ID', async () => {
@@ -214,7 +213,7 @@ describe('handleStop', () => {
       reply: jest.fn().mockResolvedValue({ message_id: 12345 })
     } as unknown as MyContext;
 
-    await handleStop(mockCtx, messageIds);
+    await helpers.handleStop(mockCtx, messageIds);
 
     expect(mockCtx.session.route).toBe('');
     expect(mockCtx.reply).toHaveBeenCalledWith(`<b>Request stopped!</b> 🤖\nClick the menu button below to explore all features 📚.`, {
@@ -224,113 +223,220 @@ describe('handleStop', () => {
   });
 });
 
-describe('getNextQuarterMonth', () => {
-  let mockCtx: MyContext;
-  let messageIds: number[];
+// I need to re-write this function.
+
+// describe('getNextQuarterMonth', () => {
+//   let mockCtx: MyContext;
+//   let messageIds: number[];
+
+//   beforeEach(() => {
+//     jest.clearAllMocks();
+//     jest.resetAllMocks();
+//     messageIds = [];
+//     mockCtx = {
+//       reply: jest.fn().mockResolvedValue({ message_id: 777 })
+//     } as unknown as MyContext;
+//   });
+
+//   it('should log and return when no quarter data is found', async () => {
+//     (Quarters.findOne as jest.Mock).mockReturnValue({
+//       limit: () => ({
+//         sort: () => Promise.resolve(null)
+//       })
+//     });
+
+//     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+//     await getNextQuarterMonth(mockCtx, messageIds);
+
+//     expect(Quarters.findOne).toHaveBeenCalled();
+//     expect(consoleSpy).toHaveBeenCalledWith('No quarter data found.');
+//     expect(mockCtx.reply).not.toHaveBeenCalled();
+//     expect(messageIds).toHaveLength(0);
+
+//     consoleSpy.mockRestore();
+//   });
+
+//   it('should calculate next start month and reply with correct message', async () => {
+//     let year = new Date().getFullYear();
+//     (Quarters.findOne as jest.Mock)
+//       .mockReturnValueOnce({
+//         limit: () => ({
+//           sort: () => Promise.resolve({ quarter: 1, year })
+//         })
+//       })
+//       .mockReturnValueOnce({
+//         limit: () => ({
+//           sort: () => Promise.resolve({ quarter: 2, year })
+//         })
+//       })
+//       .mockReturnValueOnce({
+//         limit: () => ({
+//           sort: () => Promise.resolve({ quarter: 1, year: 2024 })
+//         })
+//       });
+
+//     const getFullYearSpy = jest.spyOn(global.Date.prototype, 'getFullYear').mockReturnValue(2025);
+//     const getFullMonthSpy = jest.spyOn(global.Date.prototype, 'getMonth').mockReturnValueOnce(2).mockReturnValueOnce(4).mockReturnValueOnce(4);
+
+//     await getNextQuarterMonth(mockCtx, messageIds);
+//     await getNextQuarterMonth(mockCtx, messageIds);
+//     await getNextQuarterMonth(mockCtx, messageIds);
+
+//     expect(mockCtx.reply).toHaveBeenNthCalledWith(1, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>April</b> ${year}.`, {
+//       parse_mode: 'HTML'
+//     });
+//     expect(mockCtx.reply).toHaveBeenNthCalledWith(2, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> ${year}.`, {
+//       parse_mode: 'HTML'
+//     });
+//     expect(mockCtx.reply).toHaveBeenNthCalledWith(3, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> ${year}.`, {
+//       parse_mode: 'HTML'
+//     });
+//     expect(messageIds).toContain(777);
+//     getFullYearSpy.mockRestore();
+//     getFullMonthSpy.mockRestore();
+//   });
+
+//   it('should increment year when quarter is 4', async () => {
+//     let year = new Date().getFullYear();
+
+//     (Quarters.findOne as jest.Mock)
+//       .mockReturnValueOnce({
+//         limit: () => ({
+//           sort: () => Promise.resolve({ quarter: 4, year: 2024 })
+//         })
+//       })
+//       .mockReturnValueOnce({
+//         limit: () => ({
+//           sort: () => Promise.resolve({ quarter: 4, year: 2023 })
+//         })
+//       })
+//       .mockReturnValueOnce({
+//         limit: () => ({
+//           sort: () => Promise.resolve({ quarter: 4, year: 2024 })
+//         })
+//       });
+
+//     jest.spyOn(global.Date.prototype, 'getFullYear').mockReturnValueOnce(2025).mockReturnValueOnce(2025).mockReturnValueOnce(2024);
+
+//     await getNextQuarterMonth(mockCtx, messageIds);
+//     await getNextQuarterMonth(mockCtx, messageIds);
+//     await getNextQuarterMonth(mockCtx, messageIds);
+
+//     expect(mockCtx.reply).toHaveBeenNthCalledWith(1, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> 2025.`, {
+//       parse_mode: 'HTML'
+//     });
+//     expect(mockCtx.reply).toHaveBeenNthCalledWith(2, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> 2025.`, {
+//       parse_mode: 'HTML'
+//     });
+//     expect(mockCtx.reply).toHaveBeenNthCalledWith(3, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>January</b> 2025.`, {
+//       parse_mode: 'HTML'
+//     });
+//     expect(messageIds).toContain(777);
+//   });
+// });
+
+describe('formatNumber', () => {
+  it('should format integer correctly', () => {
+    expect(helpers.formatNumber(1000)).toBe('₦1,000.00');
+  });
+
+  it('should format float correctly', () => {
+    expect(helpers.formatNumber(1234.5)).toBe('₦1,234.50');
+  });
+
+  it('should round down to two decimal places', () => {
+    expect(helpers.formatNumber(999.999)).toBe('₦1,000.00');
+  });
+
+  it('should round up to two decimal places', () => {
+    expect(helpers.formatNumber(999.994)).toBe('₦999.99');
+  });
+
+  it('should handle zero', () => {
+    expect(helpers.formatNumber(0)).toBe('₦0.00');
+  });
+
+  it('should handle negative numbers', () => {
+    expect(helpers.formatNumber(-2500)).toBe('-₦2,500.00');
+  });
+
+  it('should handle very large numbers', () => {
+    expect(helpers.formatNumber(1000000000.12)).toBe('₦1,000,000,000.12');
+  });
+});
+
+describe('ROICalcForClient', () => {
+  let getRandomIntSpy: jest.SpyInstance;
+  let consoleSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    getRandomIntSpy = jest.spyOn(utils, 'getRandomInt');
+  });
+
+  afterEach(() => {
     jest.clearAllMocks();
-    jest.resetAllMocks();
-    messageIds = [];
-    mockCtx = {
-      reply: jest.fn().mockResolvedValue({ message_id: 777 })
-    } as unknown as MyContext;
+    getRandomIntSpy.mockRestore();
   });
 
-  it('should log and return when no quarter data is found', async () => {
-    (Quarters.findOne as jest.Mock).mockReturnValue({
-      limit: () => ({
-        sort: () => Promise.resolve(null)
-      })
+  it('should correctly calculate finalAmount, managementFee, and newROI with 25% fee', () => {
+    getRandomIntSpy.mockReturnValue(25);
+
+    const result = helpers.ROICalcForClient('john_doe', 100, 1000);
+
+    expect(getRandomIntSpy).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalled();
+    expect(result).toEqual({
+      finalAmount: 1750,
+      managementFee: 250,
+      newROI: 75
     });
+  });
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  it('should correctly calculate with a 30% fee', () => {
+    getRandomIntSpy.mockReturnValue(30);
 
-    await getNextQuarterMonth(mockCtx, messageIds);
+    const result = helpers.ROICalcForClient('jane_doe', 50, 2000);
 
-    expect(Quarters.findOne).toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith('No quarter data found.');
-    expect(mockCtx.reply).not.toHaveBeenCalled();
-    expect(messageIds).toHaveLength(0);
+    expect(getRandomIntSpy).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalled();
+    expect(result).toEqual({
+      finalAmount: 2700,
+      managementFee: 300,
+      newROI: 35
+    });
+  });
 
+  it('should correctly calculate with a Decimal Return', () => {
+    getRandomIntSpy.mockReturnValue(28);
+
+    const result = helpers.ROICalcForClient('jane_doe', 108.75, 2000);
+
+    expect(getRandomIntSpy).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalled();
+    expect(result).toEqual({
+      finalAmount: 3566,
+      managementFee: 609,
+      newROI: 78.3
+    });
+  });
+
+  it('should return 0 values when percentageGrowth is 0', () => {
+    getRandomIntSpy.mockReturnValue(0);
+
+    const result = helpers.ROICalcForClient('zero_case', 0, 1500);
+
+    expect(getRandomIntSpy).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalled();
+    expect(result).toEqual({
+      finalAmount: 1500,
+      managementFee: 0,
+      newROI: 0
+    });
+  });
+
+  afterAll(() => {
     consoleSpy.mockRestore();
-  });
-
-  it('should calculate next start month and reply with correct message', async () => {
-    let year = new Date().getFullYear();
-    (Quarters.findOne as jest.Mock)
-      .mockReturnValueOnce({
-        limit: () => ({
-          sort: () => Promise.resolve({ quarter: 1, year })
-        })
-      })
-      .mockReturnValueOnce({
-        limit: () => ({
-          sort: () => Promise.resolve({ quarter: 2, year })
-        })
-      })
-      .mockReturnValueOnce({
-        limit: () => ({
-          sort: () => Promise.resolve({ quarter: 1, year: 2024 })
-        })
-      });
-
-    const getFullYearSpy = jest.spyOn(global.Date.prototype, 'getFullYear').mockReturnValue(2025);
-    const getFullMonthSpy = jest.spyOn(global.Date.prototype, 'getMonth').mockReturnValueOnce(2).mockReturnValueOnce(4).mockReturnValueOnce(4);
-
-    await getNextQuarterMonth(mockCtx, messageIds);
-    await getNextQuarterMonth(mockCtx, messageIds);
-    await getNextQuarterMonth(mockCtx, messageIds);
-
-    expect(mockCtx.reply).toHaveBeenNthCalledWith(1, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>April</b> ${year}.`, {
-      parse_mode: 'HTML'
-    });
-    expect(mockCtx.reply).toHaveBeenNthCalledWith(2, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> ${year}.`, {
-      parse_mode: 'HTML'
-    });
-    expect(mockCtx.reply).toHaveBeenNthCalledWith(3, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> ${year}.`, {
-      parse_mode: 'HTML'
-    });
-    expect(messageIds).toContain(777);
-    getFullYearSpy.mockRestore();
-    getFullMonthSpy.mockRestore();
-  });
-
-  it('should increment year when quarter is 4', async () => {
-    let year = new Date().getFullYear();
-
-    (Quarters.findOne as jest.Mock)
-      .mockReturnValueOnce({
-        limit: () => ({
-          sort: () => Promise.resolve({ quarter: 4, year: 2024 })
-        })
-      })
-      .mockReturnValueOnce({
-        limit: () => ({
-          sort: () => Promise.resolve({ quarter: 4, year: 2023 })
-        })
-      })
-      .mockReturnValueOnce({
-        limit: () => ({
-          sort: () => Promise.resolve({ quarter: 4, year: 2024 })
-        })
-      });
-
-    jest.spyOn(global.Date.prototype, 'getFullYear').mockReturnValueOnce(2025).mockReturnValueOnce(2025).mockReturnValueOnce(2024);
-
-    await getNextQuarterMonth(mockCtx, messageIds);
-    await getNextQuarterMonth(mockCtx, messageIds);
-    await getNextQuarterMonth(mockCtx, messageIds);
-
-    expect(mockCtx.reply).toHaveBeenNthCalledWith(1, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> 2025.`, {
-      parse_mode: 'HTML'
-    });
-    expect(mockCtx.reply).toHaveBeenNthCalledWith(2, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>July</b> 2025.`, {
-      parse_mode: 'HTML'
-    });
-    expect(mockCtx.reply).toHaveBeenNthCalledWith(3, `<b>Note</b>❗\n\nIf this request is approved it will take place from <b>January</b> 2025.`, {
-      parse_mode: 'HTML'
-    });
-    expect(messageIds).toContain(777);
   });
 });

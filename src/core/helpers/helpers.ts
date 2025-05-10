@@ -12,6 +12,7 @@ import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, Trans
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { getRandomInt } from './utils';
 
 const messageIds: number[] = [];
 
@@ -123,12 +124,6 @@ export function initial(): SessionData {
 }
 
 export type MyContext = Context & SessionFlavor<SessionData>;
-
-export function getRandomInt(min: number, max: number): number {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 export const handleStop = async (ctx: MyContext, messageIds: number[]): Promise<void> => {
   ctx.session.route = '';

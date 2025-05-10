@@ -1,5 +1,5 @@
 import { CommandContext } from 'grammy';
-import { getNextQuarterMonth, isLoggedIn, MyContext, trackMessage } from '../helpers';
+import { getNextQuarterMonth, isLoggedIn, MyContext, trackMessage } from '../helpers/helpers';
 
 const messageIds: number[] = [];
 

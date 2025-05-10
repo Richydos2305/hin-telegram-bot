@@ -1,5 +1,5 @@
 import { Router } from '@grammyjs/router';
-import { confirmDeposit, formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
+import { confirmDeposit, formatNumber, handleStop, MyContext, trackMessage } from '../helpers/helpers';
 import { bot } from '../../bot';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
