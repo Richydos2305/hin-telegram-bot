@@ -503,6 +503,7 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
             user_id: userData._id,
             account_id: account._id,
             type: TransactionType.WITHDRAWAL,
+            plan: ctx.session.userPlan,
             amount: Number(amount)
           });
           ctx.session.route = '';
@@ -510,7 +511,7 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
           messageIds.push(reply.message_id);
 
           await messageAdmins(
-            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))}. \nKindly log in as an admin to confirm this.`
+            `${userData.first_name} just made a withdrawal request of ${formatNumber(Number(amount))} from the ${ctx.session.userPlan} Risk Plan. \nKindly log in as an admin to confirm this.`
           );
         } else {
           const reply = await ctx.reply(`<b>Insufficient Funds</b> 🚫\n\nYou don't have enough balance to complete this transaction.`, {
@@ -586,4 +587,85 @@ export function getAccountDates(): { startDate: Date; endDate: Date } {
   endDate.setFullYear(endDate.getFullYear() + 1);
 
   return { startDate, endDate };
+}
+
+export async function checkBuffer(
+  ctx: MyContext,
+  messageIds: number[],
+  amount: number,
+  userPlan: UserPlan
+): Promise<{ data: any; response: string }> {
+  if (userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
+    const buffer = await HinBuffer.findOne();
+    if (buffer) {
+      if (buffer.amount_allocated >= buffer.amount) {
+        const reply = await ctx.reply('<b>No more deposits can be made at this time.</b> 🚫', {
+          parse_mode: 'HTML'
+        });
+        messageIds.push(reply.message_id);
+        return { data: buffer, response: 'false' };
+      }
+      const availableAmount = buffer.amount - buffer.amount_allocated;
+
+      if (userPlan === UserPlan.MEDIUM_RISK) {
+        if (amount > availableAmount * 2) {
+          const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount * 2)}`, {
+            parse_mode: 'HTML'
+          });
+          messageIds.push(reply.message_id);
+          return { data: buffer, response: 'Try again' };
+        }
+      } else if (userPlan === UserPlan.LOW_RISK) {
+        if (amount > availableAmount) {
+          const reply = await ctx.reply(`<b>Amount too large.</b> 🚫\n\n Your deposit should not exceed ${formatNumber(availableAmount)}`, {
+            parse_mode: 'HTML'
+          });
+          messageIds.push(reply.message_id);
+          return { data: buffer, response: 'Try again' };
+        }
+      }
+    }
+    console.log('Buffer check passed');
+    return { data: buffer, response: 'true' };
+  }
+  return { data: null, response: 'Not applicable' };
+}
+
+export async function updateBufferDeposits(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<void> {
+  const buffer = (await checkBuffer(ctx, messageIds, amount, userPlan)).data;
+  if (buffer) {
+    if (userPlan === UserPlan.MEDIUM_RISK) {
+      buffer.amount_allocated += amount / 2;
+    } else if (userPlan === UserPlan.LOW_RISK) {
+      buffer.amount_allocated += amount;
+    }
+    await buffer.save();
+  }
+  const reply = await ctx.reply(`Buffer updated successfully.`, {
+    parse_mode: 'HTML'
+  });
+  messageIds.push(reply.message_id);
+}
+
+export async function updateBufferWithdrawal(ctx: MyContext, amount: number, userPlan: UserPlan): Promise<void> {
+  const buffer = await HinBuffer.findOne();
+  if (userPlan === UserPlan.MEDIUM_RISK) {
+    if (buffer) {
+      buffer.amount_allocated -= amount / 2;
+      await buffer.save();
+      const reply = await ctx.reply(`Buffer updated successfully. removed ${formatNumber(amount / 2)} from allocated amount.`, {
+        parse_mode: 'HTML'
+      });
+      messageIds.push(reply.message_id);
+    }
+  } else if (userPlan === UserPlan.LOW_RISK) {
+    if (buffer) {
+      buffer.amount_allocated -= amount;
+      await buffer.save();
+      const reply = await ctx.reply(`Buffer updated successfully. removed ${formatNumber(amount)} from allocated amount.`, {
+        parse_mode: 'HTML'
+      });
+      messageIds.push(reply.message_id);
+    }
+  }
 }
