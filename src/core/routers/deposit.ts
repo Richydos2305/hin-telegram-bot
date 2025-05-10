@@ -1,7 +1,7 @@
 import { Router } from '@grammyjs/router';
-import { confirmDeposit, formatNumber, handleStop, MyContext, trackMessage } from '../helpers';
+import { confirmDeposit, checkBuffer, handleStop, MyContext, trackMessage } from '../helpers/helpers';
 import { UserPlan } from '../interfaces';
-import { checkBuffer } from '../helpers/helpers';
+import { formatNumber } from '../helpers/utils';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
