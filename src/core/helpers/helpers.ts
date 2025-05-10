@@ -12,7 +12,7 @@ import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, Trans
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
-import { getRandomInt } from './utils';
+import { formatNumber, getRandomInt } from './utils';
 
 const messageIds: number[] = [];
 
@@ -194,18 +194,7 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   messageIds.push(reply.message_id);
 };
 
-export function formatNumber(amount: number): string {
-  const formattedNumber: string = new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
-
-  return formattedNumber;
-}
-
-export function ROICalcForClient(
+export function calcROIWithCommissions(
   username: string,
   percentageGrowth: number,
   initialAmount: number
@@ -222,7 +211,7 @@ export function ROICalcForClient(
   return { finalAmount, managementFee, newROI };
 }
 
-export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number): number {
+export function calcROIWithoutCommissions(percentageGrowth: number, initialAmount: number): number {
   const finalAmount: number = parseFloat(((percentageGrowth / 100) * initialAmount + initialAmount).toFixed(2));
   return finalAmount;
 }
@@ -251,10 +240,10 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
     if (user && client.current_balance > 0) {
       startingCapital = client.current_balance;
       if (commissions === false) {
-        result = ROICalcForAdmin(roi, startingCapital);
+        result = calcROIWithoutCommissions(roi, startingCapital);
         endingCapital = result;
       } else if (commissions === true) {
-        result = ROICalcForClient(user.username, roi, startingCapital);
+        result = calcROIWithCommissions(user.username, roi, startingCapital);
         managementFee += result.managementFee;
         roi = result.newROI;
         endingCapital = result.finalAmount;
@@ -311,7 +300,7 @@ export async function calcForMediumRisk(): Promise<void> {
     const user = await Users.findOne({ _id: client.user_id });
     const roi = 25;
     if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
-      result = ROICalcForAdmin(roi, client.initial_balance);
+      result = calcROIWithoutCommissions(roi, client.initial_balance);
       client.current_balance += result - client.initial_balance;
       client.quarters += 1;
 
@@ -343,7 +332,7 @@ export async function calcForLowRisk(): Promise<void> {
     const user = await Users.findOne({ _id: client.user_id });
     const roi = 7.5;
     if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
-      result = ROICalcForAdmin(roi, client.initial_balance);
+      result = calcROIWithoutCommissions(roi, client.initial_balance);
       client.current_balance += result - client.initial_balance;
       client.quarters += 1;
 

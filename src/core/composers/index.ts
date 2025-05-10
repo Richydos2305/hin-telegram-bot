@@ -1,5 +1,5 @@
 import { Composer } from 'grammy';
-import { formatNumber, handleStop, isLoggedIn, MyContext, promptWithdrawalAmount, trackMessage } from '../helpers/helpers';
+import { handleStop, isLoggedIn, MyContext, promptWithdrawalAmount, trackMessage } from '../helpers/helpers';
 import { handleStart } from '../command/start';
 import { handleAdmin } from '../command/admin';
 import { handleLogin } from '../command/login';
@@ -10,6 +10,7 @@ import { Quarters } from '../models/quarters';
 import { ITransactions, Transactions } from '../models/transactions';
 import { Users } from '../models/users';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
+import { formatNumber } from '../helpers/utils';
 
 const composer = new Composer<MyContext>();
 const messageIds: number[] = [];

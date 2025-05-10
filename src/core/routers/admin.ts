@@ -1,5 +1,5 @@
 import { Router } from '@grammyjs/router';
-import { formatNumber, makeAnEntry, MyContext, trackMessage } from '../helpers/helpers';
+import { makeAnEntry, MyContext, trackMessage } from '../helpers/helpers';
 import { FileType, TransactionStatus, TransactionType, UserPlan } from '../interfaces';
 import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
@@ -8,6 +8,7 @@ import { Transactions } from '../models/transactions';
 import { bot } from '../../bot';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { formatNumber } from '../helpers/utils';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];

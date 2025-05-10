@@ -1,12 +1,13 @@
 import bcrypt from 'bcrypt';
 import { Router } from '@grammyjs/router';
-import { formatNumber, getAccessToken, handleStop, MyContext, trackMessage } from '../helpers/helpers';
+import { getAccessToken, handleStop, MyContext, trackMessage } from '../helpers/helpers';
 import { FileType, TransactionStatus } from '../interfaces';
 import { Users } from '../models/users';
 import { questions } from '../command/login';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { bot } from '../../bot';
 import { settings } from '../config/application';
+import { formatNumber } from '../helpers/utils';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
