@@ -7,7 +7,7 @@ import { questions } from '../command/login';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { bot } from '../../bot';
 import { settings } from '../config/application';
-import { formatNumber } from '../helpers/utils';
+import { formatNumber } from '../helpers/numberUtils';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];

@@ -7,7 +7,7 @@ import { Transactions } from '../models/transactions';
 import { bot } from '../../bot';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
-import { formatNumber } from '../helpers/utils';
+import { formatNumber } from '../helpers/numberUtils';
 import { updateBufferDeposits, updateBufferWithdrawal, makeAnEntry, MyContext, trackMessage } from '../helpers/helpers';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
