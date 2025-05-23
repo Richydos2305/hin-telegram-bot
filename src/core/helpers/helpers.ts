@@ -489,12 +489,12 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
           account = await HighRiskAccounts.findOne({ user_id: userData._id });
         } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
           account = await MediumRiskAccounts.findOne({ user_id: userData._id });
-          if (await daysLeftInPlan(ctx, account?.start_date)) {
+          if (await daysLeftInPlan(ctx, account?.start_date, messageIds)) {
             return;
           }
         } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
           account = await LowRiskAccounts.findOne({ user_id: userData._id });
-          if (await daysLeftInPlan(ctx, account?.start_date)) {
+          if (await daysLeftInPlan(ctx, account?.start_date, messageIds)) {
             return;
           }
         }
@@ -534,7 +534,7 @@ export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[
   messageIds.push(reply.message_id);
 }
 
-const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean> => {
+export const daysLeftInPlan = async (ctx: MyContext, startDate: Date, messageIds: number[]): Promise<any> => {
   const currentDate = new Date();
   const difference = currentDate.getTime() - startDate.getTime();
   const yearInMilliseconds = 31536000000;
@@ -546,7 +546,7 @@ const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean>
     );
     messageIds.push(reply.message_id);
     await handleStop(ctx, messageIds);
-    return true;
+    return {notExpired: true, remainingDays: remainingDays};
   }
   return false;
 };
@@ -566,25 +566,27 @@ const checkDeposits = (): boolean => {
 };
 
 export function getAccountDates(): { startDate: Date; endDate: Date } {
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  let startMonth;
+  const offset = 60 * 60 * 1000;  
+  const now = new Date(Date.now() + offset);
+  const currentMonth = now.getUTCMonth();  
+  const currentYear = now.getUTCFullYear();
 
-  if (currentMonth % 3 === 0) {
-    startMonth = currentMonth + 1;
-  } else if ((currentMonth + 1) % 3 === 0) {
-    startMonth = currentMonth + 2;
-  } else {
-    if (currentMonth !== 10) {
-      startMonth = currentMonth + 3;
-    }
-    startMonth = 1;
+  let startMonth: number;
+  let startYear = currentYear;
+
+  if (currentMonth >= 9) {  
+    startMonth = 0;  
+    startYear += 1;
+  } else if (currentMonth >= 6) {  
+    startMonth = 9; 
+  } else if (currentMonth >= 3) { 
+    startMonth = 6; 
+  } else { 
+    startMonth = 3; 
   }
 
-  const startDate = currentMonth === 10 ? new Date(now.getFullYear() + 1, 0, 1) : new Date(now.getFullYear(), startMonth - 1, 1);
-
-  const endDate = new Date(startDate);
-  endDate.setFullYear(endDate.getFullYear() + 1);
+  const startDate = new Date(Date.UTC(startYear, startMonth, 1));
+  const endDate = new Date(Date.UTC(startDate.getUTCFullYear() + 1, startDate.getUTCMonth(), 1));
 
   return { startDate, endDate };
 }
@@ -669,3 +671,4 @@ export async function updateBufferWithdrawal(ctx: MyContext, amount: number, use
     }
   }
 }
+

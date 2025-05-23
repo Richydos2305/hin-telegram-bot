@@ -506,3 +506,76 @@ describe('messageAdmins', () => {
     consoleSpy.mockRestore();
   });
 });
+
+describe('getAccountDates()', () => {
+  beforeAll(() => {
+    jest.useFakeTimers();  
+  });
+
+  afterAll(() => {
+    jest.useRealTimers(); 
+  });
+
+  test('returns correct start and end dates when current month is October', () => {
+    const mockDate = new Date(Date.UTC(2024, 9, 5)); 
+    jest.setSystemTime(mockDate);
+
+    const { startDate, endDate } = helpers.getAccountDates();
+
+    expect(startDate).toEqual(new Date(Date.UTC(2025, 0, 1))); 
+    expect(endDate).toEqual(new Date(Date.UTC(2026, 0, 1)));   
+  });
+
+  test('returns correct dates when current month is May', () => {
+    jest.setSystemTime(new Date(Date.UTC(2024, 4, 10))); 
+    const { startDate, endDate } = helpers.getAccountDates();
+
+    const expectedStart = new Date(Date.UTC(2024, 6, 1));
+    const expectedEnd = new Date(Date.UTC(2025, 6, 1));   
+
+    expect(startDate).toEqual(expectedStart);
+    expect(endDate).toEqual(expectedEnd);
+  });
+
+  describe('daysLeftInPlan', () => {
+  let mockCtx: MyContext;
+  let messageIds: number[];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    messageIds = [];
+    mockCtx = {
+      reply: jest.fn().mockResolvedValue({ message_id: 12345 }),
+      session: {}
+    } as unknown as MyContext;
+  });
+
+  it('should reply with remaining days and stop the process if less than a year has passed', async () => {
+    const startDate = new Date(Date.now() - 200 * 86400000); // 200 days ago
+    const handleStopSpy = jest.spyOn(helpers, 'handleStop').mockResolvedValue();
+
+    const result = await helpers.daysLeftInPlan(mockCtx, startDate,messageIds);
+
+    expect(result.notExpired).toBe(true);
+    expect(mockCtx.reply).toHaveBeenCalledWith(
+      expect.stringContaining('You have'),
+      { parse_mode: 'HTML' }
+    );
+    expect(messageIds).toContain(12345);
+    expect(handleStopSpy).toHaveBeenCalledWith(mockCtx, messageIds);
+  });
+
+  it('should return false if more than a year has passed since the start date', async () => {
+    const startDate = new Date(Date.now() - 400 * 86400000); // 400 days ago
+
+    const result = await helpers.daysLeftInPlan(mockCtx, startDate, messageIds);
+
+    expect(result).toBe(false);
+    expect(mockCtx.reply).not.toHaveBeenCalled();
+  });
+});
+
+
+});
+
+
