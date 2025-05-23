@@ -10,6 +10,7 @@ import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Quarters } from '../models/quarters';
 import { HinBuffer } from '../models/buffer';
+import { UserPlan } from '../interfaces';
 
 jest.mock('jsonwebtoken', () => ({
   sign: jest.fn(),
@@ -671,74 +672,147 @@ describe('calcForHighRisk', () => {
 });
 
 describe('getAccountDates()', () => {
-  beforeAll(() => {
-    jest.useFakeTimers();  
+  beforeEach(() => {
+    jest.useFakeTimers();
   });
 
-  afterAll(() => {
-    jest.useRealTimers(); 
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   test('returns correct start and end dates when current month is October', () => {
-    const mockDate = new Date(Date.UTC(2024, 9, 5)); 
+    const mockDate = new Date(Date.UTC(2024, 9, 5));
     jest.setSystemTime(mockDate);
 
     const { startDate, endDate } = helpers.getAccountDates();
 
-    expect(startDate).toEqual(new Date(Date.UTC(2025, 0, 1))); 
-    expect(endDate).toEqual(new Date(Date.UTC(2026, 0, 1)));   
+    expect(startDate).toEqual(new Date(Date.UTC(2025, 0, 1)));
+    expect(endDate).toEqual(new Date(Date.UTC(2026, 0, 1)));
   });
 
   test('returns correct dates when current month is May', () => {
-    jest.setSystemTime(new Date(Date.UTC(2024, 4, 10))); 
+    jest.setSystemTime(new Date(Date.UTC(2024, 4, 10)));
     const { startDate, endDate } = helpers.getAccountDates();
 
     const expectedStart = new Date(Date.UTC(2024, 6, 1));
-    const expectedEnd = new Date(Date.UTC(2025, 6, 1));   
+    const expectedEnd = new Date(Date.UTC(2025, 6, 1));
 
     expect(startDate).toEqual(expectedStart);
     expect(endDate).toEqual(expectedEnd);
   });
 
   describe('daysLeftInPlan', () => {
-  let mockCtx: MyContext;
+    let mockCtx: MyContext;
+    let messageIds: number[];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      messageIds = [];
+      mockCtx = {
+        reply: jest.fn().mockResolvedValue({ message_id: 12345 }),
+        session: {}
+      } as unknown as MyContext;
+    });
+
+    it('should reply with remaining days and stop the process if less than a year has passed', async () => {
+      const startDate = new Date(Date.now() - 200 * 86400000); // 200 days ago
+      const handleStopSpy = jest.spyOn(helpers, 'handleStop').mockResolvedValue();
+
+      const result = await helpers.daysLeftInPlan(mockCtx, startDate, messageIds);
+
+      expect(result.notExpired).toBe(true);
+      expect(mockCtx.reply).toHaveBeenCalledWith(expect.stringContaining('You have'), { parse_mode: 'HTML' });
+      expect(messageIds).toContain(12345);
+      expect(handleStopSpy).toHaveBeenCalledWith(mockCtx, messageIds);
+    });
+
+    it('should return false if more than a year has passed since the start date', async () => {
+      const startDate = new Date(Date.now() - 400 * 86400000); // 400 days ago
+
+      const result = await helpers.daysLeftInPlan(mockCtx, startDate, messageIds);
+
+      expect(result).toBe(false);
+      expect(mockCtx.reply).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('checkBuffer', () => {
+  let mockCtx: any;
   let messageIds: number[];
+  let mockBuffer: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     messageIds = [];
     mockCtx = {
-      reply: jest.fn().mockResolvedValue({ message_id: 12345 }),
-      session: {}
-    } as unknown as MyContext;
+      reply: jest.fn().mockResolvedValue({ message_id: 123 })
+    };
+    mockBuffer = { amount: 1000, amount_allocated: 500, save: jest.fn() };
+    jest.spyOn(HinBuffer, 'findOne').mockResolvedValue(mockBuffer);
   });
 
-  it('should reply with remaining days and stop the process if less than a year has passed', async () => {
-    const startDate = new Date(Date.now() - 200 * 86400000); // 200 days ago
-    const handleStopSpy = jest.spyOn(helpers, 'handleStop').mockResolvedValue();
-
-    const result = await helpers.daysLeftInPlan(mockCtx, startDate,messageIds);
-
-    expect(result.notExpired).toBe(true);
-    expect(mockCtx.reply).toHaveBeenCalledWith(
-      expect.stringContaining('You have'),
-      { parse_mode: 'HTML' }
-    );
-    expect(messageIds).toContain(12345);
-    expect(handleStopSpy).toHaveBeenCalledWith(mockCtx, messageIds);
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  it('should return false if more than a year has passed since the start date', async () => {
-    const startDate = new Date(Date.now() - 400 * 86400000); // 400 days ago
+  it('should return "Not applicable" for HIGH_RISK', async () => {
+    const result = await helpers.checkBuffer(mockCtx, messageIds, 100, UserPlan.HIGH_RISK);
+    expect(result).toEqual({ data: null, response: 'Not applicable' });
+    expect(mockCtx.reply).not.toHaveBeenCalled();
+  });
 
-    const result = await helpers.daysLeftInPlan(mockCtx, startDate, messageIds);
+  it('should return false if buffer is full', async () => {
+    mockBuffer.amount_allocated = 1000;
+    const result = await helpers.checkBuffer(mockCtx, messageIds, 100, UserPlan.MEDIUM_RISK);
+    expect(result.response).toBe('false');
+    expect(mockCtx.reply).toHaveBeenCalledWith('<b>No more deposits can be made at this time.</b> 🚫', { parse_mode: 'HTML' });
+    expect(messageIds).toContain(123);
+  });
 
-    expect(result).toBe(false);
+  it('should return "Try again" if amount is too large for MEDIUM_RISK', async () => {
+    const result = await helpers.checkBuffer(mockCtx, messageIds, 2000, UserPlan.MEDIUM_RISK);
+    expect(result.response).toBe('Try again');
+    expect(mockCtx.reply).toHaveBeenCalledWith(expect.stringContaining('Amount too large.'), { parse_mode: 'HTML' });
+    expect(messageIds).toContain(123);
+  });
+
+  it('should return "Try again" if amount is too large for LOW_RISK', async () => {
+    const result = await helpers.checkBuffer(mockCtx, messageIds, 600, UserPlan.LOW_RISK);
+    expect(result.response).toBe('Try again');
+    expect(mockCtx.reply).toHaveBeenCalledWith(expect.stringContaining('Amount too large.'), { parse_mode: 'HTML' });
+    expect(messageIds).toContain(123);
+  });
+
+  it('should return true if buffer check passes for MEDIUM_RISK', async () => {
+    const result = await helpers.checkBuffer(mockCtx, messageIds, 100, UserPlan.MEDIUM_RISK);
+    expect(result.response).toBe('true');
+    expect(mockCtx.reply).not.toHaveBeenCalled();
+  });
+
+  it('should return true if buffer check passes for LOW_RISK', async () => {
+    const result = await helpers.checkBuffer(mockCtx, messageIds, 100, UserPlan.LOW_RISK);
+    expect(result.response).toBe('true');
     expect(mockCtx.reply).not.toHaveBeenCalled();
   });
 });
 
+describe('checkDesposits', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
+  it('should return true if deposits can be made that month', () => {
+    jest.setSystemTime(new Date(Date.UTC(2024, 9, 10))); // October 10, 2024
+    const result = helpers.checkDeposits();
+    expect(result).toBe(true);
+  });
+
+  it('should return false if deposits cannot be made that month', () => {
+    jest.setSystemTime(new Date(Date.UTC(2024, 8, 10))); // September 10, 2024
+    const result = helpers.checkDeposits();
+    expect(result).toBe(false);
+  });
 });
-
-

@@ -517,12 +517,12 @@ export const daysLeftInPlan = async (ctx: MyContext, startDate: Date, messageIds
     );
     messageIds.push(reply.message_id);
     await handleStop(ctx, messageIds);
-    return {notExpired: true, remainingDays: remainingDays};
+    return { notExpired: true, remainingDays: remainingDays };
   }
   return false;
 };
 
-const checkDeposits = (): boolean => {
+export const checkDeposits = (): boolean => {
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
 
@@ -537,23 +537,23 @@ const checkDeposits = (): boolean => {
 };
 
 export function getAccountDates(): { startDate: Date; endDate: Date } {
-  const offset = 60 * 60 * 1000;  
+  const offset = 60 * 60 * 1000;
   const now = new Date(Date.now() + offset);
-  const currentMonth = now.getUTCMonth();  
+  const currentMonth = now.getUTCMonth();
   const currentYear = now.getUTCFullYear();
 
   let startMonth: number;
   let startYear = currentYear;
 
-  if (currentMonth >= 9) {  
-    startMonth = 0;  
+  if (currentMonth >= 9) {
+    startMonth = 0;
     startYear += 1;
-  } else if (currentMonth >= 6) {  
-    startMonth = 9; 
-  } else if (currentMonth >= 3) { 
-    startMonth = 6; 
-  } else { 
-    startMonth = 3; 
+  } else if (currentMonth >= 6) {
+    startMonth = 9;
+  } else if (currentMonth >= 3) {
+    startMonth = 6;
+  } else {
+    startMonth = 3;
   }
 
   const startDate = new Date(Date.UTC(startYear, startMonth, 1));
@@ -642,4 +642,3 @@ export async function updateBufferWithdrawal(ctx: MyContext, amount: number, use
     }
   }
 }
-
