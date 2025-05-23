@@ -12,7 +12,8 @@ import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, Trans
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
-import { formatNumber, getRandomInt } from './utils';
+import { calcROIWithCommissions, calcROIWithoutCommissions, messageAdmins } from './utils';
+import { formatNumber } from './numberUtils';
 
 const messageIds: number[] = [];
 
@@ -193,36 +194,6 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
 
   messageIds.push(reply.message_id);
 };
-
-export function calcROIWithCommissions(
-  username: string,
-  percentageGrowth: number,
-  initialAmount: number
-): { finalAmount: number; managementFee: number; newROI: number } {
-  const overallProfit = parseFloat(((percentageGrowth / 100) * initialAmount).toFixed(2));
-  const randomInt = getRandomInt(25, 30);
-  const managementFee = parseFloat(((randomInt / 100) * overallProfit).toFixed(2));
-  const newProfit = overallProfit - managementFee;
-  const newROI = parseFloat(((newProfit / initialAmount) * 100).toFixed(2));
-  const finalAmount: number = newProfit + initialAmount;
-
-  console.log(`${username} - Random Int = ${randomInt}%  ROI = ${newROI}%  Management Fee = ${formatNumber(managementFee)}`);
-
-  return { finalAmount, managementFee, newROI };
-}
-
-export function calcROIWithoutCommissions(percentageGrowth: number, initialAmount: number): number {
-  const finalAmount: number = parseFloat(((percentageGrowth / 100) * initialAmount + initialAmount).toFixed(2));
-  return finalAmount;
-}
-
-export async function messageAdmins(message: string): Promise<void> {
-  let reply = await bot.api.sendMessage(settings.adminIds.chatId1, message);
-  trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
-
-  reply = await bot.api.sendMessage(settings.adminIds.chatId2, message);
-  trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
-}
 
 export async function calcForHighRisk(ctx: MyContext): Promise<void> {
   let startingCapital: number;

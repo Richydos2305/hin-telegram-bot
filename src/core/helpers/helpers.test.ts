@@ -1,10 +1,15 @@
 import { MyContext } from './helpers';
 import * as utils from './utils';
+import * as numberUtils from './numberUtils';
 import * as helpers from './helpers';
 import { messageStore, bot } from '../../bot';
 import * as jwt from 'jsonwebtoken';
 import { Types } from 'mongoose';
 import { settings } from '../config/application';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
+import { Users } from '../models/users';
+import { Quarters } from '../models/quarters';
+import { HinBuffer } from '../models/buffer';
 
 jest.mock('jsonwebtoken', () => ({
   sign: jest.fn(),
@@ -181,14 +186,14 @@ describe('getRandomInt', () => {
     const max = 5;
 
     for (let i = 0; i < 50; i++) {
-      const result = utils.getRandomInt(min, max);
+      const result = numberUtils.getRandomInt(min, max);
       expect(result).toBeGreaterThanOrEqual(min);
       expect(result).toBeLessThanOrEqual(max);
     }
   });
 
   it('works when min and max are the same', () => {
-    const result = utils.getRandomInt(3, 3);
+    const result = numberUtils.getRandomInt(3, 3);
     expect(result).toBe(3);
   });
 
@@ -197,7 +202,7 @@ describe('getRandomInt', () => {
     const max = 20;
 
     for (let i = 0; i < 100; i++) {
-      const result = utils.getRandomInt(min, max);
+      const result = numberUtils.getRandomInt(min, max);
       expect(Number.isInteger(result)).toBe(true);
     }
   });
@@ -338,31 +343,31 @@ describe('handleStop', () => {
 
 describe('formatNumber', () => {
   it('should format integer correctly', () => {
-    expect(utils.formatNumber(1000)).toBe('₦1,000.00');
+    expect(numberUtils.formatNumber(1000)).toBe('₦1,000.00');
   });
 
   it('should format float correctly', () => {
-    expect(utils.formatNumber(1234.5)).toBe('₦1,234.50');
+    expect(numberUtils.formatNumber(1234.5)).toBe('₦1,234.50');
   });
 
   it('should round down to two decimal places', () => {
-    expect(utils.formatNumber(999.999)).toBe('₦1,000.00');
+    expect(numberUtils.formatNumber(999.999)).toBe('₦1,000.00');
   });
 
   it('should round up to two decimal places', () => {
-    expect(utils.formatNumber(999.994)).toBe('₦999.99');
+    expect(numberUtils.formatNumber(999.994)).toBe('₦999.99');
   });
 
   it('should handle zero', () => {
-    expect(utils.formatNumber(0)).toBe('₦0.00');
+    expect(numberUtils.formatNumber(0)).toBe('₦0.00');
   });
 
   it('should handle negative numbers', () => {
-    expect(utils.formatNumber(-2500)).toBe('-₦2,500.00');
+    expect(numberUtils.formatNumber(-2500)).toBe('-₦2,500.00');
   });
 
   it('should handle very large numbers', () => {
-    expect(utils.formatNumber(1000000000.12)).toBe('₦1,000,000,000.12');
+    expect(numberUtils.formatNumber(1000000000.12)).toBe('₦1,000,000,000.12');
   });
 });
 
@@ -372,7 +377,7 @@ describe('calcROIWithCommissions', () => {
 
   beforeEach(() => {
     consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    getRandomIntSpy = jest.spyOn(utils, 'getRandomInt');
+    getRandomIntSpy = jest.spyOn(numberUtils, 'getRandomInt');
   });
 
   afterEach(() => {
@@ -383,7 +388,7 @@ describe('calcROIWithCommissions', () => {
   it('should correctly calculate finalAmount, managementFee, and newROI with 25% fee', () => {
     getRandomIntSpy.mockReturnValue(25);
 
-    const result = helpers.calcROIWithCommissions('john_doe', 100, 1000);
+    const result = utils.calcROIWithCommissions('john_doe', 100, 1000);
 
     expect(getRandomIntSpy).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalled();
@@ -397,7 +402,7 @@ describe('calcROIWithCommissions', () => {
   it('should correctly calculate with a 30% fee', () => {
     getRandomIntSpy.mockReturnValue(30);
 
-    const result = helpers.calcROIWithCommissions('jane_doe', 50, 2000);
+    const result = utils.calcROIWithCommissions('jane_doe', 50, 2000);
 
     expect(getRandomIntSpy).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalled();
@@ -411,7 +416,7 @@ describe('calcROIWithCommissions', () => {
   it('should correctly calculate with a Decimal Return', () => {
     getRandomIntSpy.mockReturnValue(28);
 
-    const result = helpers.calcROIWithCommissions('jane_doe', 108.75, 2000);
+    const result = utils.calcROIWithCommissions('jane_doe', 108.75, 2000);
 
     expect(getRandomIntSpy).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalled();
@@ -425,7 +430,7 @@ describe('calcROIWithCommissions', () => {
   it('should return 0 values when percentageGrowth is 0', () => {
     getRandomIntSpy.mockReturnValue(0);
 
-    const result = helpers.calcROIWithCommissions('zero_case', 0, 1500);
+    const result = utils.calcROIWithCommissions('zero_case', 0, 1500);
 
     expect(getRandomIntSpy).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalled();
@@ -443,28 +448,28 @@ describe('calcROIWithCommissions', () => {
 
 describe('calcROIWithoutCommissions', () => {
   it('should return correct final amount for positive growth', () => {
-    const result = helpers.calcROIWithoutCommissions(50, 1000);
+    const result = utils.calcROIWithoutCommissions(50, 1000);
     expect(result).toBe(1500);
   });
 
   it('should return correct final amount for zero growth', () => {
-    const result = helpers.calcROIWithoutCommissions(0, 2000);
+    const result = utils.calcROIWithoutCommissions(0, 2000);
     expect(result).toBe(2000);
   });
 
   it('should return correct final amount for negative growth', () => {
-    const result = helpers.calcROIWithoutCommissions(-25, 800);
+    const result = utils.calcROIWithoutCommissions(-25, 800);
     expect(result).toBe(600);
   });
 
   it('should return a number rounded to 2 decimal places', () => {
-    const result = helpers.calcROIWithoutCommissions(33.333, 999.99);
+    const result = utils.calcROIWithoutCommissions(33.333, 999.99);
     expect(result).toBeCloseTo(1333.32, 2);
   });
 
   it('should return 0 if initialAmount is 0 regardless of growth', () => {
-    expect(helpers.calcROIWithoutCommissions(100, 0)).toBe(0);
-    expect(helpers.calcROIWithoutCommissions(-100, 0)).toBe(0);
+    expect(utils.calcROIWithoutCommissions(100, 0)).toBe(0);
+    expect(utils.calcROIWithoutCommissions(-100, 0)).toBe(0);
   });
 });
 
@@ -491,7 +496,7 @@ describe('messageAdmins', () => {
       .mockImplementationOnce(() => Promise.resolve({ message_id: 12345 }))
       .mockImplementationOnce(() => Promise.resolve({ message_id: 12346 }));
 
-    await helpers.messageAdmins(message);
+    await utils.messageAdmins(message);
 
     expect(messageSpy).toHaveBeenCalledTimes(2);
     expect(messageSpy).toHaveBeenNthCalledWith(1, settings.adminIds.chatId1, message);
@@ -501,6 +506,164 @@ describe('messageAdmins', () => {
     expect(trackSpy).toHaveBeenNthCalledWith(1, Number(settings.adminIds.chatId1), [12345]);
     expect(trackSpy).toHaveBeenNthCalledWith(2, Number(settings.adminIds.chatId2), [12346]);
   });
+
+  afterAll(() => {
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('calcForHighRisk', () => {
+  let messageSpy: jest.SpyInstance;
+  let trackSpy: jest.SpyInstance;
+  let consoleSpy: jest.SpyInstance;
+  let commisionSpy: jest.SpyInstance;
+  let noCommisionSpy: jest.SpyInstance;
+
+  let messageAdminSpy: jest.SpyInstance;
+  const mockCtx = {
+    session: {
+      route: 'some-route',
+      commissions: true,
+      quarter: 2,
+      year: 2025,
+      roi: 50
+    },
+    reply: jest.fn().mockResolvedValue({ message_id: 12345 })
+  } as unknown as MyContext;
+
+  const mockUser = {
+    _id: 'user123',
+    username: 'testuser',
+    chat_id: 111
+  };
+
+  const mockClient = {
+    _id: 'account123',
+    user_id: 'user123',
+    current_balance: 1000,
+    initial_balance: 500,
+    save: jest.fn()
+  };
+
+  const mockQuarter = {
+    ending_capital: 1150,
+    year: 2025,
+    quarter: 2,
+    starting_capital: 1000,
+    roi: 0.15,
+    commission: true,
+    account_id: 'account123',
+    user_id: 'user123',
+    _id: 'quarter123'
+  };
+
+  const mockBuffer = [{ amount: 0, amount_allocated: 0, save: jest.fn() }];
+
+  beforeEach(() => {
+    messageAdminSpy = jest.spyOn(utils, 'messageAdmins');
+    messageSpy = jest.spyOn(bot.api, 'sendMessage');
+    trackSpy = jest.spyOn(helpers, 'trackMessage');
+    commisionSpy = jest.spyOn(utils, 'calcROIWithCommissions');
+    noCommisionSpy = jest.spyOn(utils, 'calcROIWithoutCommissions');
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
+  });
+
+  it('should process successfully when there are no high-risk clients', async () => {
+    messageAdminSpy.mockImplementation(() => Promise.resolve());
+    jest.spyOn(HighRiskAccounts, 'find').mockResolvedValue([]);
+
+    await helpers.calcForHighRisk(mockCtx);
+
+    expect(messageAdminSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('should process a client with balance > 0 and commissions = true', async () => {
+    const modifiedClient = { ...mockClient };
+
+    messageAdminSpy.mockImplementation(() => Promise.resolve());
+    jest.spyOn(HighRiskAccounts, 'find').mockResolvedValue([modifiedClient]);
+    jest.spyOn(Users, 'findOne').mockResolvedValue(mockUser);
+    jest.spyOn(Quarters, 'create').mockResolvedValue(mockQuarter as any);
+    jest.spyOn(HinBuffer, 'find').mockResolvedValue(mockBuffer);
+    messageSpy.mockImplementationOnce(() => Promise.resolve({ message_id: 12345 }));
+
+    await helpers.calcForHighRisk(mockCtx);
+
+    expect(messageAdminSpy).toHaveBeenCalledTimes(4);
+    expect(messageSpy).toHaveBeenCalled();
+    expect(trackSpy).toHaveBeenCalled();
+    expect(HighRiskAccounts.find).toHaveBeenCalledTimes(1);
+    expect(Users.findOne).toHaveBeenCalledTimes(1);
+    expect(Quarters.create).toHaveBeenCalledTimes(1);
+    expect(HinBuffer.find).toHaveBeenCalledTimes(1);
+    expect(noCommisionSpy).not.toHaveBeenCalled();
+    expect(commisionSpy).toHaveBeenCalledWith(mockUser.username, mockCtx.session.roi, 1000);
+    expect(mockClient.save).toHaveBeenCalledTimes(1);
+    expect(mockBuffer[0].save).toHaveBeenCalledTimes(1);
+    expect(mockBuffer[0].amount).toBeGreaterThan(0);
+    expect(mockBuffer[0].amount_allocated).toBe(0);
+  });
+
+  it('should process a client with balance > 0 and commissions = false', async () => {
+    const modifiedCtx = {
+      ...mockCtx,
+      session: {
+        ...mockCtx.session,
+        commissions: false
+      }
+    } as unknown as MyContext;
+
+    messageAdminSpy.mockImplementation(() => Promise.resolve());
+    jest.spyOn(HighRiskAccounts, 'find').mockResolvedValue([mockClient]);
+    jest.spyOn(Users, 'findOne').mockResolvedValue(mockUser);
+    jest.spyOn(Quarters, 'create').mockResolvedValue(mockQuarter as any);
+    jest.spyOn(HinBuffer, 'find').mockResolvedValue(mockBuffer);
+    messageSpy.mockImplementationOnce(() => Promise.resolve({ message_id: 12345 }));
+
+    await helpers.calcForHighRisk(modifiedCtx);
+
+    expect(messageAdminSpy).toHaveBeenCalledTimes(3);
+    expect(messageSpy).toHaveBeenCalled();
+    expect(trackSpy).toHaveBeenCalled();
+    expect(HighRiskAccounts.find).toHaveBeenCalledTimes(1);
+    expect(Users.findOne).toHaveBeenCalledTimes(1);
+    expect(Quarters.create).toHaveBeenCalledTimes(1);
+    expect(HinBuffer.find).not.toHaveBeenCalledTimes(1);
+    expect(commisionSpy).not.toHaveBeenCalled();
+    expect(noCommisionSpy).toHaveBeenCalledWith(mockCtx.session.roi, 1000);
+    expect(mockClient.save).toHaveBeenCalledTimes(1);
+    expect(mockBuffer[0].save).not.toHaveBeenCalled();
+  });
+
+  // it('should process clients with commissions and update records correctly', async () => {
+  //   const message = 'Test message';
+  //   messageSpy
+  //     .mockImplementationOnce(() => Promise.resolve({ message_id: 12345 }))
+  //     .mockImplementationOnce(() => Promise.resolve({ message_id: 12346 }));
+
+  //   await helpers.messageAdmins(message);
+
+  //   expect(messageSpy).toHaveBeenCalledTimes(2);
+  //   expect(messageSpy).toHaveBeenNthCalledWith(1, settings.adminIds.chatId1, message);
+  //   expect(messageSpy).toHaveBeenNthCalledWith(2, settings.adminIds.chatId2, message);
+
+  //   expect(trackSpy).toHaveBeenCalledTimes(2);
+  //   expect(trackSpy).toHaveBeenNthCalledWith(1, Number(settings.adminIds.chatId1), [12345]);
+  //   expect(trackSpy).toHaveBeenNthCalledWith(2, Number(settings.adminIds.chatId2), [12346]);
+
+  //   messageAdminSpy.mockImplementation(() => Promise.resolve());
+  //   jest.spyOn(HighRiskAccounts, 'find').mockResolvedValue([mockClient]);
+  //   jest.spyOn(Users, 'findOne').mockResolvedValue(mockUser);
+
+  //   await helpers.calcForHighRisk(mockCtx);
+
+  //   expect(messageAdminSpy).toHaveBeenCalledTimes(3);
+  // });
 
   afterAll(() => {
     consoleSpy.mockRestore();

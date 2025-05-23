@@ -10,7 +10,7 @@ import { Quarters } from '../models/quarters';
 import { ITransactions, Transactions } from '../models/transactions';
 import { Users } from '../models/users';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
-import { formatNumber } from '../helpers/utils';
+import { formatNumber } from '../helpers/numberUtils';
 
 const composer = new Composer<MyContext>();
 const messageIds: number[] = [];
