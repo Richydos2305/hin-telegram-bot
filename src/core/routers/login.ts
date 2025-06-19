@@ -107,7 +107,7 @@ router.route('loginInProgress', async (ctx) => {
               { text: 'Recent Quarter', callback_data: 'recent_quarter' }
             ],
             [
-              { text: 'Investment Status', callback_data: 'investment_status' },
+              { text: 'Investment Summary', callback_data: 'investment_status' },
               { text: 'Transaction History', callback_data: 'transaction_history' }
             ]
           ]

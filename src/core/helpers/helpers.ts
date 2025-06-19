@@ -14,6 +14,7 @@ import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 import { calcROIWithCommissions, calcROIWithoutCommissions, messageAdmins } from './utils';
 import { formatNumber } from './numberUtils';
+import { quarterlyUpdateMessage } from './constants';
 
 const messageIds: number[] = [];
 
@@ -235,16 +236,7 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
         await client.save();
         let reply = await ctx.reply(`Successful Entry for ${user.username}`);
         messageIds.push(reply.message_id);
-        reply = await bot.api.sendMessage(
-          user.chat_id,
-          `Quarterly Performance Update for Q${ctx.session.quarter}
-
-A whole 3 months has passed by and we are done for the quarter.
-Kindly log in and check the latest results.
-
-Once again, thank you for your patronage.
-          `
-        );
+        reply = await bot.api.sendMessage(user.chat_id, quarterlyUpdateMessage);
         trackMessage(Number(user.chat_id), [reply.message_id]);
       }
     }
@@ -261,15 +253,15 @@ Once again, thank you for your patronage.
   await messageAdmins('High Risk - Done');
 }
 
-export async function calcForMediumRisk(): Promise<void> {
+export async function calcForMediumRisk(roi: number): Promise<void> {
   let result: number;
+  let reply;
 
   await messageAdmins('Medium Risk - Started');
 
   const clients = await MediumRiskAccounts.find({ status: statusType.ACTIVE });
   for (const client of clients) {
     const user = await Users.findOne({ _id: client.user_id });
-    const roi = 25;
     if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
       result = calcROIWithoutCommissions(roi, client.initial_balance);
       client.current_balance += result - client.initial_balance;
@@ -280,28 +272,26 @@ export async function calcForMediumRisk(): Promise<void> {
         client.completion_date = new Date();
 
         await messageAdmins(`${user.first_name}'s Medium Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
-        const reply = await bot.api.sendMessage(
-          user.chat_id,
-          'Your Medium Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
-        );
+        reply = await bot.api.sendMessage(user.chat_id, 'Your Medium Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.');
         trackMessage(Number(user.chat_id), [reply.message_id]);
       }
       await client.save();
+      reply = await bot.api.sendMessage(user.chat_id, quarterlyUpdateMessage);
     }
   }
 
   await messageAdmins('Medium Risk - Done');
 }
 
-export async function calcForLowRisk(): Promise<void> {
+export async function calcForLowRisk(roi: number): Promise<void> {
   let result: number;
+  let reply;
 
   await messageAdmins('Low Risk - Started');
 
   const clients = await LowRiskAccounts.find({ status: statusType.ACTIVE });
   for (const client of clients) {
     const user = await Users.findOne({ _id: client.user_id });
-    const roi = 7.5;
     if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
       result = calcROIWithoutCommissions(roi, client.initial_balance);
       client.current_balance += result - client.initial_balance;
@@ -312,35 +302,16 @@ export async function calcForLowRisk(): Promise<void> {
         client.completion_date = new Date();
 
         await messageAdmins(`${user.first_name}'s Low Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
-        const reply = await bot.api.sendMessage(
-          user.chat_id,
-          'Your Low Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
-        );
+        reply = await bot.api.sendMessage(user.chat_id, 'Your Low Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.');
         trackMessage(Number(user.chat_id), [reply.message_id]);
       }
       await client.save();
+      reply = await bot.api.sendMessage(user.chat_id, quarterlyUpdateMessage);
     }
   }
 
   await messageAdmins('Low Risk - Done');
 }
-
-export const makeAnEntry = async (ctx: MyContext): Promise<void> => {
-  try {
-    const userId = ctx.message?.chat.id;
-    await calcForHighRisk(ctx);
-    await calcForMediumRisk();
-    await calcForLowRisk();
-
-    const reply = await ctx.reply('Check db to confirm. Done');
-    messageIds.push(reply.message_id);
-
-    if (userId) trackMessage(userId as number, messageIds);
-    messageIds.length = 0;
-  } catch (error) {
-    console.error(error);
-  }
-};
 
 export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
   const { message } = ctx;
@@ -460,12 +431,12 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
           account = await HighRiskAccounts.findOne({ user_id: userData._id });
         } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
           account = await MediumRiskAccounts.findOne({ user_id: userData._id });
-          if (await daysLeftInPlan(ctx, account?.start_date, messageIds)) {
+          if (account && (await daysLeftInPlan(ctx, account?.start_date, messageIds))) {
             return;
           }
         } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
           account = await LowRiskAccounts.findOne({ user_id: userData._id });
-          if (await daysLeftInPlan(ctx, account?.start_date, messageIds)) {
+          if (account && (await daysLeftInPlan(ctx, account?.start_date, messageIds))) {
             return;
           }
         }

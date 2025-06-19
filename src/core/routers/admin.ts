@@ -8,7 +8,15 @@ import { bot } from '../../bot';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 import { formatNumber } from '../helpers/numberUtils';
-import { updateBufferDeposits, updateBufferWithdrawal, makeAnEntry, MyContext, trackMessage } from '../helpers/helpers';
+import {
+  updateBufferDeposits,
+  updateBufferWithdrawal,
+  MyContext,
+  trackMessage,
+  calcForMediumRisk,
+  calcForLowRisk,
+  calcForHighRisk
+} from '../helpers/helpers';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -51,9 +59,21 @@ router.route('askROI', async (ctx) => {
     if (!isNaN(Number(message.text))) {
       ctx.session.roi = Number(message.text);
       if (ctx.session.roi >= -100) {
-        const reply = await ctx.reply(`Add Commissions? Respond with yes or no`);
-        messageIds.push(reply.message_id);
-        ctx.session.route = 'askCommissions';
+        if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+          const reply = await ctx.reply(`Add Commissions? Respond with yes or no`);
+          messageIds.push(reply.message_id);
+          ctx.session.route = 'askCommissions';
+        }
+        if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+          await calcForMediumRisk(Number(message.text));
+          ctx.session.userPlan = '';
+          ctx.session.route = '';
+        }
+        if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+          await calcForLowRisk(Number(message.text));
+          ctx.session.userPlan = '';
+          ctx.session.route = '';
+        }
       } else {
         const reply = await ctx.reply('Please input a valid ROI amount, between -100% and 200%');
         messageIds.push(reply.message_id);
@@ -75,11 +95,11 @@ router.route('askCommissions', async (ctx) => {
   if (message) {
     if (message.text && (message.text.toLowerCase() === 'yes' || message.text.toLowerCase() === 'y')) {
       ctx.session.commissions = true;
-      await makeAnEntry(ctx);
+      await calcForHighRisk(ctx);
       ctx.session.route = '';
     } else if (message.text && (message.text.toLowerCase() === 'no' || message.text.toLowerCase() === 'n')) {
       ctx.session.commissions = false;
-      await makeAnEntry(ctx);
+      await calcForHighRisk(ctx);
       ctx.session.route = '';
     } else {
       const reply = await ctx.reply('Respond with yes or no');
