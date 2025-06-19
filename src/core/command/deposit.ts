@@ -27,7 +27,7 @@ export const handleDeposit = async (ctx: CommandContext<MyContext>): Promise<voi
     messageIds.push(reply.message_id);
     ctx.session.route = '';
   } else {
-    const reply = await ctx.reply('<B>Login Required</b> 🔒\n\nUse /login to access this feature.', { parse_mode: 'HTML' });
+    const reply = await ctx.reply('<b>Login Required</b> 🔒\n\nUse /login to access this feature.', { parse_mode: 'HTML' });
     messageIds.push(reply.message_id);
   }
 
