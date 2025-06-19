@@ -7,11 +7,14 @@ import { SessionFlavor, Context } from 'grammy';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { HinBuffer } from '../models/buffer';
 import { Quarters } from '../models/quarters';
-import { bot, messageStore } from '../..';
+import { bot, messageStore } from '../../bot';
 import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, TransactionType, UserPlan, statusType } from '../interfaces';
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { calcROIWithCommissions, calcROIWithoutCommissions, messageAdmins } from './utils';
+import { formatNumber } from './numberUtils';
+import { quarterlyUpdateMessage } from './constants';
 
 const messageIds: number[] = [];
 
@@ -124,12 +127,6 @@ export function initial(): SessionData {
 
 export type MyContext = Context & SessionFlavor<SessionData>;
 
-function getRandomInt(min: number, max: number): number {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 export const handleStop = async (ctx: MyContext, messageIds: number[]): Promise<void> => {
   ctx.session.route = '';
   const reply = await ctx.reply(`<b>Request stopped!</b> 🤖\nClick the menu button below to explore all features 📚.`, { parse_mode: 'HTML' });
@@ -148,16 +145,31 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  let nextYear = year;
+  let nextYear = currentYear;
   let nextStartMonth = '';
 
   if (quarter === 4) {
-    if (currentYear > year) {
-      nextStartMonth = QuarterBeginningMonths.Q2;
-    } else {
+    if (!(currentYear > year)) {
       nextStartMonth = QuarterBeginningMonths.Q1;
+      nextYear = year + 1;
+    } else {
+      nextStartMonth = quarterMap.get(quarter) || QuarterBeginningMonths.Q2;
+
+      const monthNumber = quarterStartMonths.get(nextStartMonth) || 1;
+
+      if (currentMonth >= monthNumber) {
+        nextStartMonth =
+          {
+            April: QuarterBeginningMonths.Q3,
+            July: QuarterBeginningMonths.Q4,
+            October: QuarterBeginningMonths.Q1
+          }[nextStartMonth] || QuarterBeginningMonths.Q2;
+
+        if (nextStartMonth === QuarterBeginningMonths.Q1) {
+          nextYear += 1;
+        }
+      }
     }
-    nextYear = year + 1;
   } else {
     nextStartMonth = quarterMap.get(quarter) || QuarterBeginningMonths.Q2;
 
@@ -184,47 +196,6 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   messageIds.push(reply.message_id);
 };
 
-export function formatNumber(amount: number): string {
-  const formattedNumber: string = new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
-
-  return formattedNumber;
-}
-
-export function ROICalcForClient(
-  username: string,
-  percentageGrowth: number,
-  initialAmount: number
-): { finalAmount: number; managementFee: number; newROI: number } {
-  const overallProfit = parseFloat(((percentageGrowth / 100) * initialAmount).toFixed(2));
-  const randomInt = getRandomInt(25, 30);
-  const managementFee = parseFloat(((randomInt / 100) * overallProfit).toFixed(2));
-  const newProfit = overallProfit - managementFee;
-  const newROI = parseFloat(((newProfit / initialAmount) * 100).toFixed(2));
-  const finalAmount: number = newProfit + initialAmount;
-
-  console.log(`${username} - Random Int = ${randomInt}%  ROI = ${newROI}%  Management Fee = ${formatNumber(managementFee)}`);
-
-  return { finalAmount, managementFee, newROI };
-}
-
-export function ROICalcForAdmin(percentageGrowth: number, initialAmount: number): number {
-  const finalAmount: number = parseFloat(((percentageGrowth / 100) * initialAmount + initialAmount).toFixed(2));
-  return finalAmount;
-}
-
-export async function messageAdmins(message: string): Promise<void> {
-  let reply = await bot.api.sendMessage(settings.adminIds.chatId1, message);
-  trackMessage(Number(settings.adminIds.chatId1), [reply.message_id]);
-
-  reply = await bot.api.sendMessage(settings.adminIds.chatId2, message);
-  trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
-}
-
 export async function calcForHighRisk(ctx: MyContext): Promise<void> {
   let startingCapital: number;
   let endingCapital: number = 0;
@@ -241,10 +212,10 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
     if (user && client.current_balance > 0) {
       startingCapital = client.current_balance;
       if (commissions === false) {
-        result = ROICalcForAdmin(roi, startingCapital);
+        result = calcROIWithoutCommissions(roi, startingCapital);
         endingCapital = result;
       } else if (commissions === true) {
-        result = ROICalcForClient(user.username, roi, startingCapital);
+        result = calcROIWithCommissions(user.username, roi, startingCapital);
         managementFee += result.managementFee;
         roi = result.newROI;
         endingCapital = result.finalAmount;
@@ -265,16 +236,7 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
         await client.save();
         let reply = await ctx.reply(`Successful Entry for ${user.username}`);
         messageIds.push(reply.message_id);
-        reply = await bot.api.sendMessage(
-          user.chat_id,
-          `Quarterly Performance Update for Q${ctx.session.quarter}
-
-A whole 3 months has passed by and we are done for the quarter.
-Kindly log in and check the latest results.
-
-Once again, thank you for your patronage.
-          `
-        );
+        reply = await bot.api.sendMessage(user.chat_id, quarterlyUpdateMessage);
         trackMessage(Number(user.chat_id), [reply.message_id]);
       }
     }
@@ -291,17 +253,17 @@ Once again, thank you for your patronage.
   await messageAdmins('High Risk - Done');
 }
 
-export async function calcForMediumRisk(): Promise<void> {
+export async function calcForMediumRisk(roi: number): Promise<void> {
   let result: number;
+  let reply;
 
   await messageAdmins('Medium Risk - Started');
 
   const clients = await MediumRiskAccounts.find({ status: statusType.ACTIVE });
   for (const client of clients) {
     const user = await Users.findOne({ _id: client.user_id });
-    const roi = 25;
     if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
-      result = ROICalcForAdmin(roi, client.initial_balance);
+      result = calcROIWithoutCommissions(roi, client.initial_balance);
       client.current_balance += result - client.initial_balance;
       client.quarters += 1;
 
@@ -310,30 +272,28 @@ export async function calcForMediumRisk(): Promise<void> {
         client.completion_date = new Date();
 
         await messageAdmins(`${user.first_name}'s Medium Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
-        const reply = await bot.api.sendMessage(
-          user.chat_id,
-          'Your Medium Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
-        );
+        reply = await bot.api.sendMessage(user.chat_id, 'Your Medium Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.');
         trackMessage(Number(user.chat_id), [reply.message_id]);
       }
       await client.save();
+      reply = await bot.api.sendMessage(user.chat_id, quarterlyUpdateMessage);
     }
   }
 
   await messageAdmins('Medium Risk - Done');
 }
 
-export async function calcForLowRisk(): Promise<void> {
+export async function calcForLowRisk(roi: number): Promise<void> {
   let result: number;
+  let reply;
 
   await messageAdmins('Low Risk - Started');
 
   const clients = await LowRiskAccounts.find({ status: statusType.ACTIVE });
   for (const client of clients) {
     const user = await Users.findOne({ _id: client.user_id });
-    const roi = 7.5;
     if (user && client.current_balance > 0 && client.status === statusType.ACTIVE) {
-      result = ROICalcForAdmin(roi, client.initial_balance);
+      result = calcROIWithoutCommissions(roi, client.initial_balance);
       client.current_balance += result - client.initial_balance;
       client.quarters += 1;
 
@@ -342,35 +302,16 @@ export async function calcForLowRisk(): Promise<void> {
         client.completion_date = new Date();
 
         await messageAdmins(`${user.first_name}'s Low Risk Account has reached maturity. Reach out to them to discuss withdrawal.`);
-        const reply = await bot.api.sendMessage(
-          user.chat_id,
-          'Your Low Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.'
-        );
+        reply = await bot.api.sendMessage(user.chat_id, 'Your Low Risk Plan has reached maturity. We will reach out soon to discuss withdrawal.');
         trackMessage(Number(user.chat_id), [reply.message_id]);
       }
       await client.save();
+      reply = await bot.api.sendMessage(user.chat_id, quarterlyUpdateMessage);
     }
   }
 
   await messageAdmins('Low Risk - Done');
 }
-
-export const makeAnEntry = async (ctx: MyContext): Promise<void> => {
-  try {
-    const userId = ctx.message?.chat.id;
-    await calcForHighRisk(ctx);
-    await calcForMediumRisk();
-    await calcForLowRisk();
-
-    const reply = await ctx.reply('Check db to confirm. Done');
-    messageIds.push(reply.message_id);
-
-    if (userId) trackMessage(userId as number, messageIds);
-    messageIds.length = 0;
-  } catch (error) {
-    console.error(error);
-  }
-};
 
 export async function confirmDeposit(ctx: MyContext, messageIds: number[], userData: any): Promise<void> {
   const { message } = ctx;
@@ -490,12 +431,12 @@ export async function confirmWithdrawal(ctx: MyContext, messageIds: number[], us
           account = await HighRiskAccounts.findOne({ user_id: userData._id });
         } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
           account = await MediumRiskAccounts.findOne({ user_id: userData._id });
-          if (await daysLeftInPlan(ctx, account?.start_date)) {
+          if (account && (await daysLeftInPlan(ctx, account?.start_date, messageIds))) {
             return;
           }
         } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
           account = await LowRiskAccounts.findOne({ user_id: userData._id });
-          if (await daysLeftInPlan(ctx, account?.start_date)) {
+          if (account && (await daysLeftInPlan(ctx, account?.start_date, messageIds))) {
             return;
           }
         }
@@ -535,7 +476,7 @@ export async function promptWithdrawalAmount(ctx: MyContext, messageIds: number[
   messageIds.push(reply.message_id);
 }
 
-const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean> => {
+export const daysLeftInPlan = async (ctx: MyContext, startDate: Date, messageIds: number[]): Promise<any> => {
   const currentDate = new Date();
   const difference = currentDate.getTime() - startDate.getTime();
   const yearInMilliseconds = 31536000000;
@@ -547,12 +488,12 @@ const daysLeftInPlan = async (ctx: MyContext, startDate: Date): Promise<boolean>
     );
     messageIds.push(reply.message_id);
     await handleStop(ctx, messageIds);
-    return true;
+    return { notExpired: true, remainingDays: remainingDays };
   }
   return false;
 };
 
-const checkDeposits = (): boolean => {
+export const checkDeposits = (): boolean => {
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
 
@@ -567,30 +508,37 @@ const checkDeposits = (): boolean => {
 };
 
 export function getAccountDates(): { startDate: Date; endDate: Date } {
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  let startMonth;
+  const offset = 60 * 60 * 1000;
+  const now = new Date(Date.now() + offset);
+  const currentMonth = now.getUTCMonth();
+  const currentYear = now.getUTCFullYear();
 
-  if (currentMonth % 3 === 0) {
-    startMonth = currentMonth + 1;
-  } else if ((currentMonth + 1) % 3 === 0) {
-    startMonth = currentMonth + 2;
+  let startMonth: number;
+  let startYear = currentYear;
+
+  if (currentMonth >= 9) {
+    startMonth = 0;
+    startYear += 1;
+  } else if (currentMonth >= 6) {
+    startMonth = 9;
+  } else if (currentMonth >= 3) {
+    startMonth = 6;
   } else {
-    if (currentMonth !== 10) {
-      startMonth = currentMonth + 3;
-    }
-    startMonth = 1;
+    startMonth = 3;
   }
 
-  const startDate = currentMonth === 10 ? new Date(now.getFullYear() + 1, 0, 1) : new Date(now.getFullYear(), startMonth - 1, 1);
-
-  const endDate = new Date(startDate);
-  endDate.setFullYear(endDate.getFullYear() + 1);
+  const startDate = new Date(Date.UTC(startYear, startMonth, 1));
+  const endDate = new Date(Date.UTC(startDate.getUTCFullYear() + 1, startDate.getUTCMonth(), 1));
 
   return { startDate, endDate };
 }
 
-export async function checkBuffer(ctx: MyContext, messageIds: number[], amount: number, userPlan: UserPlan): Promise<{ data: any; response: string }> {
+export async function checkBuffer(
+  ctx: MyContext,
+  messageIds: number[],
+  amount: number,
+  userPlan: UserPlan
+): Promise<{ data: any; response: string }> {
   if (userPlan === UserPlan.MEDIUM_RISK || userPlan === UserPlan.LOW_RISK) {
     const buffer = await HinBuffer.findOne();
     if (buffer) {

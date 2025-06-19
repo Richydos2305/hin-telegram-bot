@@ -1,6 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { statusType } from '../interfaces';
-import { getAccountDates } from '../helpers';
+import { getAccountDates } from '../helpers/helpers';
 
 const MediumRiskAccountSchema = new Schema(
   {

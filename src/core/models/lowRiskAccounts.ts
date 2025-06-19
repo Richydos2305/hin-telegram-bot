@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { getAccountDates } from '../helpers';
+import { getAccountDates } from '../helpers/helpers';
 
 const LowRiskAccountSchema = new Schema(
   {

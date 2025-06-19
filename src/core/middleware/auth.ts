@@ -1,7 +1,7 @@
 import { verify, Secret } from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { settings } from '../config/application';
-import { handleError } from '../helpers/index';
+import { handleError } from '../helpers/helpers';
 import { Types } from 'mongoose';
 
 export interface UserPayload {
