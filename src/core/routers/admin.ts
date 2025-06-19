@@ -288,9 +288,34 @@ router.route('broadcast', async (ctx) => {
     const users = await Users.find().select('username chat_id');
 
     for (const user of users) {
-      await bot.api.sendMessage(user.chat_id, message.text as string, {
-        entities: message.entities
-      });
+      const chatId = user.chat_id;
+
+      if (message.photo) {
+        const fileId = message.photo[message.photo.length - 1].file_id;
+        await bot.api.sendPhoto(chatId, fileId, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.video) {
+        await bot.api.sendVideo(chatId, message.video.file_id, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.audio) {
+        await bot.api.sendAudio(chatId, message.audio.file_id, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.voice) {
+        await bot.api.sendVoice(chatId, message.voice.file_id, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.text) {
+        await bot.api.sendMessage(chatId, message.text as string, {
+          entities: message.entities
+        });
+      }
     }
     await ctx.reply('Broadcast Message Sent Successfully');
   }
