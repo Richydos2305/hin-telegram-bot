@@ -1,12 +1,13 @@
 import bcrypt from 'bcrypt';
 import { Router } from '@grammyjs/router';
-import { formatNumber, getAccessToken, handleStop, MyContext, trackMessage } from '../helpers';
+import { getAccessToken, handleStop, MyContext, trackMessage } from '../helpers/helpers';
 import { FileType, TransactionStatus } from '../interfaces';
 import { Users } from '../models/users';
 import { questions } from '../command/login';
-import { Accounts } from '../models/accounts';
-import { bot } from '../..';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
+import { bot } from '../../bot';
 import { settings } from '../config/application';
+import { formatNumber } from '../helpers/numberUtils';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -81,7 +82,7 @@ router.route('securityAnswer', async (ctx) => {
       reply = await bot.api.sendMessage(settings.adminIds.chatId2, `${updatedUser.first_name} just finished the Onboarding Process 🎉`);
       trackMessage(Number(settings.adminIds.chatId2), [reply.message_id]);
 
-      await Accounts.create({ user_id: updatedUser._id });
+      await HighRiskAccounts.create({ user_id: updatedUser._id });
     }
     ctx.session.route = '';
   }
@@ -106,7 +107,7 @@ router.route('loginInProgress', async (ctx) => {
               { text: 'Recent Quarter', callback_data: 'recent_quarter' }
             ],
             [
-              { text: 'Investment Status', callback_data: 'investment_status' },
+              { text: 'Investment Summary', callback_data: 'investment_status' },
               { text: 'Transaction History', callback_data: 'transaction_history' }
             ]
           ]

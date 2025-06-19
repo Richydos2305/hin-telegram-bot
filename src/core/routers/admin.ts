@@ -1,11 +1,22 @@
 import { Router } from '@grammyjs/router';
-import { formatNumber, makeAnEntry, MyContext, trackMessage } from '../helpers';
-import { FileType, TransactionStatus, TransactionType } from '../interfaces';
+import { FileType, TransactionStatus, TransactionType, UserPlan } from '../interfaces';
 import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
-import { Accounts } from '../models/accounts';
+import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
-import { bot } from '../..';
+import { bot } from '../../bot';
+import { LowRiskAccounts } from '../models/lowRiskAccounts';
+import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { formatNumber } from '../helpers/numberUtils';
+import {
+  updateBufferDeposits,
+  updateBufferWithdrawal,
+  MyContext,
+  trackMessage,
+  calcForMediumRisk,
+  calcForLowRisk,
+  calcForHighRisk
+} from '../helpers/helpers';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -48,9 +59,21 @@ router.route('askROI', async (ctx) => {
     if (!isNaN(Number(message.text))) {
       ctx.session.roi = Number(message.text);
       if (ctx.session.roi >= -100) {
-        const reply = await ctx.reply(`Add Commissions? Respond with yes or no`);
-        messageIds.push(reply.message_id);
-        ctx.session.route = 'askCommissions';
+        if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+          const reply = await ctx.reply(`Add Commissions? Respond with yes or no`);
+          messageIds.push(reply.message_id);
+          ctx.session.route = 'askCommissions';
+        }
+        if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+          await calcForMediumRisk(Number(message.text));
+          ctx.session.userPlan = '';
+          ctx.session.route = '';
+        }
+        if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+          await calcForLowRisk(Number(message.text));
+          ctx.session.userPlan = '';
+          ctx.session.route = '';
+        }
       } else {
         const reply = await ctx.reply('Please input a valid ROI amount, between -100% and 200%');
         messageIds.push(reply.message_id);
@@ -72,11 +95,11 @@ router.route('askCommissions', async (ctx) => {
   if (message) {
     if (message.text && (message.text.toLowerCase() === 'yes' || message.text.toLowerCase() === 'y')) {
       ctx.session.commissions = true;
-      await makeAnEntry(ctx);
+      await calcForHighRisk(ctx);
       ctx.session.route = '';
     } else if (message.text && (message.text.toLowerCase() === 'no' || message.text.toLowerCase() === 'n')) {
       ctx.session.commissions = false;
-      await makeAnEntry(ctx);
+      await calcForHighRisk(ctx);
       ctx.session.route = '';
     } else {
       const reply = await ctx.reply('Respond with yes or no');
@@ -112,8 +135,10 @@ router.route('viewUserTransaction', async (ctx) => {
           parse_mode: 'HTML',
           reply_markup: transactionConfirmationkeyboard
         });
+
         messageIds.push(reply.message_id);
         ctx.session.currentTransaction = userTransaction;
+        ctx.session.userPlan = userTransaction.transaction.plan;
         ctx.session.route = 'transactionRequestInProgress';
       } else {
         const reply = await ctx.reply('A user with that name does not exist');
@@ -132,11 +157,18 @@ router.route('transactionRequestInProgress', async (ctx) => {
   messageIds.push(message?.message_id as number);
 
   if (message) {
-    const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
+    let account;
+    if (ctx.session.userPlan === UserPlan.HIGH_RISK) {
+      account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    } else if (ctx.session.userPlan === UserPlan.MEDIUM_RISK) {
+      account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    } else if (ctx.session.userPlan === UserPlan.LOW_RISK) {
+      account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+    }
     const user = await Users.findById(currentTransaction.transaction.user_id);
-    console.log(`${currentTransaction.transaction.type} Request: ${message.text}.`);
-
+    console.log(`${currentTransaction.transaction.type} Request: ${message.text} Plan: ${currentTransaction.transaction.plan}.`);
     if (message.text === TransactionStatus.APPROVED && account && currentTransaction.transaction.type === TransactionType.DEPOSIT) {
+      await updateBufferDeposits(ctx, messageIds, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
       account.current_balance += currentTransaction.transaction.amount;
       account.initial_balance += currentTransaction.transaction.amount;
       await account.save();
@@ -169,7 +201,8 @@ router.route('transactionRequestInProgress', async (ctx) => {
       if (user) {
         const reply = await bot.api.sendMessage(
           user.chat_id,
-          `**Transaction Denied!** 🚫\n\nUnfortunately, your transaction request of ${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`
+          `<b>Transaction Denied!</b> 🚫\n\nUnfortunately, your transaction request of ${formatNumber(currentTransaction.transaction.amount)} has been denied.\n\nPlease review and correct the details you provided, as they may be invalid. 📝`,
+          { parse_mode: 'HTML' }
         );
         messageIds.push(reply.message_id);
         ctx.session.route = '';
@@ -210,7 +243,12 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
         status: TransactionStatus.APPROVED,
         receipt
       });
-      const account = await Accounts.findOne({ _id: currentTransaction.transaction.account_id });
+      let account = await HighRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+      if (!account) {
+        account = await MediumRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+      } else if (!account) {
+        account = await LowRiskAccounts.findOne({ _id: currentTransaction.transaction.account_id });
+      }
 
       if (account) {
         account.current_balance = parseFloat((account.current_balance - currentTransaction.transaction.amount).toFixed(2));
@@ -221,6 +259,7 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
       }
       let reply = await ctx.reply('Okay. Will let the user know it has been approved');
       messageIds.push(reply.message_id);
+      await updateBufferWithdrawal(ctx, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
 
       const user = await Users.findById(currentTransaction.transaction.user_id);
       if (user) {
