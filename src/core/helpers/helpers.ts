@@ -226,7 +226,7 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
         year,
         quarter,
         roi: parseFloat((roi / 100).toFixed(4)),
-        commissions,
+        commission: commissions,
         starting_capital: parseFloat(startingCapital.toFixed(2)),
         ending_capital: parseFloat(endingCapital.toFixed(2))
       });
