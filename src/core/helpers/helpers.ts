@@ -197,11 +197,25 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   messageIds.push(reply.message_id);
 };
 
+export async function unallocatedBufferCalc(roi: number): Promise<number> {
+  const buffer = await HinBuffer.find();
+  const amountUnallocated = buffer[0].amount - buffer[0].amount_allocated;
+  const result = calcROIWithoutCommissions(roi, amountUnallocated) - amountUnallocated;
+  if (result <= 0) {
+    buffer[0].amount -= result;
+    await buffer[0].save();
+  }
+  return result;
+}
+
 export async function calcForAdmins(roi: number): Promise<void> {
   const admins = await Admins.find();
+  const bufferProfit = (await unallocatedBufferCalc(roi)) / 2;
   for (const admin of admins) {
-    if (admin.current_balance && admin.current_balance > 0) {
-      admin.current_balance = calcROIWithoutCommissions(roi, admin.current_balance);
+    let balance = admin.current_balance;
+    if (balance && balance > 0) {
+      balance = calcROIWithoutCommissions(roi, balance);
+      admin.current_balance = bufferProfit >= 0 ? balance + bufferProfit : balance;
       await admin.save();
       await messageAdmins('Your Balance has been updated as well');
     }
@@ -254,6 +268,7 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
     }
   }
   await messageAdmins(`Management Fee for this quarter = ${formatNumber(managementFee)}.`);
+  await calcForAdmins(ctx.session.roi);
 
   if (managementFee > 0) {
     const buffer = await HinBuffer.find();
@@ -263,7 +278,6 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
   }
 
   await messageAdmins('High Risk - Done');
-  await calcForAdmins(ctx.session.roi);
 }
 
 export async function calcForMediumRisk(roi: number): Promise<void> {
