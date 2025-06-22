@@ -45,6 +45,7 @@ export interface Admin {
   username: string;
   password: string;
   chat_id: string;
+  current_balance?: number;
 }
 
 export enum SessionState {

@@ -12,6 +12,7 @@ import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, Trans
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { Admins } from '../models/admins';
 import { calcROIWithCommissions, calcROIWithoutCommissions, messageAdmins } from './utils';
 import { formatNumber } from './numberUtils';
 import { quarterlyUpdateMessage } from './constants';
@@ -196,6 +197,17 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   messageIds.push(reply.message_id);
 };
 
+export async function calcForAdmins(roi: number): Promise<void> {
+  const admins = await Admins.find();
+  for (const admin of admins) {
+    if (admin.current_balance && admin.current_balance > 0) {
+      admin.current_balance = calcROIWithoutCommissions(roi, admin.current_balance);
+      await admin.save();
+      await messageAdmins('Your Balance has been updated as well');
+    }
+  }
+}
+
 export async function calcForHighRisk(ctx: MyContext): Promise<void> {
   let startingCapital: number;
   let endingCapital: number = 0;
@@ -251,6 +263,7 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
   }
 
   await messageAdmins('High Risk - Done');
+  await calcForAdmins(ctx.session.roi);
 }
 
 export async function calcForMediumRisk(roi: number): Promise<void> {
