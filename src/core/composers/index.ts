@@ -14,6 +14,7 @@ import { formatNumber } from '../helpers/numberUtils';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { highRiskDescription, inputROI, lowRiskDescription, mediumRiskDescription } from '../helpers/constants';
+import { HinBuffer } from '../models/buffer';
 
 const composer = new Composer<MyContext>();
 const messageIds: number[] = [];
@@ -90,6 +91,21 @@ composer.on('callback_query', async (ctx) => {
       const reply = await ctx.reply('Type out the message you want to send to your investors');
       messageIds.push(reply.message_id);
       ctx.session.route = 'broadcast';
+    } else if (callbackData === 'view_buffer') {
+      const buffer = await HinBuffer.findOne();
+      if (buffer) {
+        const reply = await ctx.reply(
+          `
+     <b>Buffer Capital</b>: ${formatNumber(buffer.amount)}
+     <b>Amount Allocated</b>: ${formatNumber(buffer.amount_allocated)}
+     <b>% Allocated</b>: ${((buffer.amount_allocated / buffer.amount) * 100).toFixed(2)}%`,
+          {
+            parse_mode: 'HTML'
+          }
+        );
+        messageIds.push(reply.message_id);
+      }
+      ctx.session.route = '';
     } else if (callbackData === 'high_risk') {
       const reply = await ctx.reply(inputROI);
       messageIds.push(reply.message_id);
