@@ -13,5 +13,5 @@ export const settings = {
     chatId1: process.env.ADMINCHATID1 as string,
     chatId2: process.env.ADMINCHATID2 as string
   },
-  allowDepositsAndWithdrawals: process.env.ALLOW_DEPOSIT_WITHDRAWAL as unknown as boolean
+  allowDepositsAndWithdrawals: process.env.ALLOW_DEPOSIT_WITHDRAWAL === 'true'
 };
