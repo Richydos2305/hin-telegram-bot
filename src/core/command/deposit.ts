@@ -1,7 +1,7 @@
 import { CommandContext } from 'grammy';
 import { getNextQuarterMonth, isLoggedIn, MyContext, trackMessage } from '../helpers/helpers';
 import { settings } from '../config/application';
-import { transactionsNotAllowed } from '../helpers/constants';
+import { transactionsNotAllowed, loginPrompt } from '../helpers/constants';
 
 const messageIds: number[] = [];
 
@@ -35,7 +35,7 @@ export const handleDeposit = async (ctx: CommandContext<MyContext>): Promise<voi
       ctx.session.route = '';
     }
   } else {
-    const reply = await ctx.reply('<b>Login Required</b> 🔒\n\nUse /login to access this feature.', { parse_mode: 'HTML' });
+    const reply = await ctx.reply(loginPrompt, { parse_mode: 'HTML' });
     messageIds.push(reply.message_id);
   }
 

@@ -24,3 +24,4 @@ export const inputROI = 'Input quarters ROI';
 export const validROIMessage = 'Please input a valid ROI amount, between -100% and 200%';
 export const approvalMessage = 'Okay. Will let the user know it has been approved';
 export const transactionsNotAllowed = '<b>Deposits and Withdrawals are currently disabled till the end of the quarter.</b>';
+export const loginPrompt = '<b>Login Required</b> 🔒\n\nUse /login to access this feature.';
