@@ -12,6 +12,7 @@ import { FileType, QuarterBeginningMonths, quarterMap, quarterStartMonths, Trans
 import { Transactions } from '../models/transactions';
 import { LowRiskAccounts } from '../models/lowRiskAccounts';
 import { MediumRiskAccounts } from '../models/mediumRiskAccounts';
+import { Admins } from '../models/admins';
 import { calcROIWithCommissions, calcROIWithoutCommissions, messageAdmins } from './utils';
 import { formatNumber } from './numberUtils';
 import { quarterlyUpdateMessage } from './constants';
@@ -196,6 +197,31 @@ export const getNextQuarterMonth = async (ctx: MyContext, messageIds: number[]):
   messageIds.push(reply.message_id);
 };
 
+export async function unallocatedBufferCalc(roi: number): Promise<number> {
+  const buffer = await HinBuffer.find();
+  const amountUnallocated = buffer[0].amount - buffer[0].amount_allocated;
+  const result = calcROIWithoutCommissions(roi, amountUnallocated) - amountUnallocated;
+  if (result <= 0) {
+    buffer[0].amount -= result;
+    await buffer[0].save();
+  }
+  return result;
+}
+
+export async function calcForAdmins(roi: number): Promise<void> {
+  const admins = await Admins.find();
+  const bufferProfit = (await unallocatedBufferCalc(roi)) / 2;
+  for (const admin of admins) {
+    let balance = admin.current_balance;
+    if (balance && balance > 0) {
+      balance = calcROIWithoutCommissions(roi, balance);
+      admin.current_balance = bufferProfit >= 0 ? balance + bufferProfit : balance;
+      await admin.save();
+    }
+  }
+  await messageAdmins('Your Balance has been updated as well');
+}
+
 export async function calcForHighRisk(ctx: MyContext): Promise<void> {
   let startingCapital: number;
   let endingCapital: number = 0;
@@ -242,6 +268,7 @@ export async function calcForHighRisk(ctx: MyContext): Promise<void> {
     }
   }
   await messageAdmins(`Management Fee for this quarter = ${formatNumber(managementFee)}.`);
+  await calcForAdmins(ctx.session.roi);
 
   if (managementFee > 0) {
     const buffer = await HinBuffer.find();
