@@ -1,6 +1,6 @@
 import { Router } from '@grammyjs/router';
 import { FileType, TransactionStatus, TransactionType, UserPlan } from '../interfaces';
-import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
+import { transactionConfirmationkeyboard } from '../command/admin';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
@@ -17,6 +17,7 @@ import {
   calcForLowRisk,
   calcForHighRisk
 } from '../helpers/helpers';
+import { approvalMessage, pickTransactionStatus } from '../helpers/constants';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -33,7 +34,10 @@ router.route('adminLoginInProgress', async (ctx) => {
             { text: 'Make Entry', callback_data: 'make_entry' },
             { text: 'View Transactions', callback_data: 'view_transactions' }
           ],
-          [{ text: 'Broadcast', callback_data: 'broadcast' }]
+          [
+            { text: 'Broadcast', callback_data: 'broadcast' },
+            { text: 'View Buffer', callback_data: 'view_buffer' }
+          ]
         ]
       }
     });
@@ -173,7 +177,7 @@ router.route('transactionRequestInProgress', async (ctx) => {
       account.initial_balance += currentTransaction.transaction.amount;
       await account.save();
       await Transactions.findByIdAndUpdate(currentTransaction.transaction._id, { status: message.text });
-      let reply = await ctx.reply('Okay. Will let the user know it has been approved');
+      let reply = await ctx.reply(approvalMessage);
       messageIds.push(reply.message_id);
       if (user) {
         reply = await bot.api.sendMessage(
@@ -257,7 +261,7 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
         if (account.initial_balance < 0) account.initial_balance = 0;
         await account.save();
       }
-      let reply = await ctx.reply('Okay. Will let the user know it has been approved');
+      let reply = await ctx.reply(approvalMessage);
       messageIds.push(reply.message_id);
       await updateBufferWithdrawal(ctx, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
 
@@ -288,9 +292,34 @@ router.route('broadcast', async (ctx) => {
     const users = await Users.find().select('username chat_id');
 
     for (const user of users) {
-      await bot.api.sendMessage(user.chat_id, message.text as string, {
-        entities: message.entities
-      });
+      const chatId = user.chat_id;
+
+      if (message.photo) {
+        const fileId = message.photo[message.photo.length - 1].file_id;
+        await bot.api.sendPhoto(chatId, fileId, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.video) {
+        await bot.api.sendVideo(chatId, message.video.file_id, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.audio) {
+        await bot.api.sendAudio(chatId, message.audio.file_id, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.voice) {
+        await bot.api.sendVoice(chatId, message.voice.file_id, {
+          caption: message.caption || '',
+          caption_entities: message.caption_entities
+        });
+      } else if (message.text) {
+        await bot.api.sendMessage(chatId, message.text as string, {
+          entities: message.entities
+        });
+      }
     }
     await ctx.reply('Broadcast Message Sent Successfully');
   }
