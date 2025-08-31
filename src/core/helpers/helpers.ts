@@ -217,9 +217,9 @@ export async function calcForAdmins(roi: number): Promise<void> {
       balance = calcROIWithoutCommissions(roi, balance);
       admin.current_balance = bufferProfit >= 0 ? balance + bufferProfit : balance;
       await admin.save();
-      await messageAdmins('Your Balance has been updated as well');
     }
   }
+  await messageAdmins('Your Balance has been updated as well');
 }
 
 export async function calcForHighRisk(ctx: MyContext): Promise<void> {
