@@ -97,8 +97,8 @@ composer.on('callback_query', async (ctx) => {
         const reply = await ctx.reply(
           `
      <b>Buffer Capital</b>: ${formatNumber(buffer.amount)}
-     <b>Amount Allocated</b>: ${formatNumber(buffer.amount_allocated)}
-     <b>% Allocated</b>: ${((buffer.amount_allocated / buffer.amount) * 100).toFixed(2)}%`,
+<b>Amount Allocated</b>: ${formatNumber(buffer.amount_allocated)}
+<b>Allocated</b>: ${((buffer.amount_allocated / buffer.amount) * 100).toFixed(2)}%`,
           {
             parse_mode: 'HTML'
           }
