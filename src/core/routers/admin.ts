@@ -34,7 +34,10 @@ router.route('adminLoginInProgress', async (ctx) => {
             { text: 'Make Entry', callback_data: 'make_entry' },
             { text: 'View Transactions', callback_data: 'view_transactions' }
           ],
-          [{ text: 'Broadcast', callback_data: 'broadcast' }]
+          [
+            { text: 'Broadcast', callback_data: 'broadcast' },
+            { text: 'View Buffer', callback_data: 'view_buffer' }
+          ]
         ]
       }
     });
