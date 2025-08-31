@@ -1,5 +1,7 @@
 import { CommandContext } from 'grammy';
 import { checkSubscribedPlans, isLoggedIn, MyContext, trackMessage } from '../helpers/helpers';
+import { settings } from '../config/application';
+import { transactionsNotAllowed } from '../helpers/constants';
 
 const messageIds: number[] = [];
 
@@ -9,7 +11,13 @@ export const handleWithdrawal = async (ctx: CommandContext<MyContext>): Promise<
   messageIds.push(ctx.message?.message_id as number);
 
   if (isLoggedIn(ctx.session.token)) {
-    await checkSubscribedPlans(ctx, userData);
+    if (settings.allowDepositsAndWithdrawals) {
+      await checkSubscribedPlans(ctx, userData);
+    } else {
+      const reply = await ctx.reply(transactionsNotAllowed, { parse_mode: 'HTML' });
+      messageIds.push(reply.message_id);
+      ctx.session.route = '';
+    }
   } else {
     const reply = await ctx.reply('**User does not exist** 🚫\n\n Please /login to perform this action');
     messageIds.push(reply.message_id);
