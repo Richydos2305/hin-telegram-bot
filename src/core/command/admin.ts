@@ -7,7 +7,6 @@ const transactionConfirmationCommand: string[] = [TransactionStatus.APPROVED, Tr
 
 const transactionConfirmationbuttonRows = transactionConfirmationCommand.map((command) => [Keyboard.text(command)]);
 export const transactionConfirmationkeyboard = Keyboard.from(transactionConfirmationbuttonRows).resized().oneTime();
-export const pickTransactionStatus = '<b>Approve or Deny?</b>';
 const messageIds: number[] = [];
 
 export const handleAdmin = async (ctx: CommandContext<MyContext>): Promise<void> => {

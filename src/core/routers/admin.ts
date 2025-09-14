@@ -1,6 +1,6 @@
 import { Router } from '@grammyjs/router';
 import { FileType, TransactionStatus, TransactionType, UserPlan } from '../interfaces';
-import { pickTransactionStatus, transactionConfirmationkeyboard } from '../command/admin';
+import { transactionConfirmationkeyboard } from '../command/admin';
 import { HighRiskAccounts } from '../models/highRiskAccounts';
 import { Users } from '../models/users';
 import { Transactions } from '../models/transactions';
@@ -17,6 +17,7 @@ import {
   calcForLowRisk,
   calcForHighRisk
 } from '../helpers/helpers';
+import { approvalMessage, pickTransactionStatus } from '../helpers/constants';
 
 const router = new Router<MyContext>((ctx) => ctx.session.route);
 const messageIds: number[] = [];
@@ -33,7 +34,10 @@ router.route('adminLoginInProgress', async (ctx) => {
             { text: 'Make Entry', callback_data: 'make_entry' },
             { text: 'View Transactions', callback_data: 'view_transactions' }
           ],
-          [{ text: 'Broadcast', callback_data: 'broadcast' }]
+          [
+            { text: 'Broadcast', callback_data: 'broadcast' },
+            { text: 'View Buffer', callback_data: 'view_buffer' }
+          ]
         ]
       }
     });
@@ -173,7 +177,7 @@ router.route('transactionRequestInProgress', async (ctx) => {
       account.initial_balance += currentTransaction.transaction.amount;
       await account.save();
       await Transactions.findByIdAndUpdate(currentTransaction.transaction._id, { status: message.text });
-      let reply = await ctx.reply('Okay. Will let the user know it has been approved');
+      let reply = await ctx.reply(approvalMessage);
       messageIds.push(reply.message_id);
       if (user) {
         reply = await bot.api.sendMessage(
@@ -257,7 +261,7 @@ router.route('transactionRequestReceiptUpload', async (ctx) => {
         if (account.initial_balance < 0) account.initial_balance = 0;
         await account.save();
       }
-      let reply = await ctx.reply('Okay. Will let the user know it has been approved');
+      let reply = await ctx.reply(approvalMessage);
       messageIds.push(reply.message_id);
       await updateBufferWithdrawal(ctx, currentTransaction.transaction.amount, currentTransaction.transaction.plan);
 

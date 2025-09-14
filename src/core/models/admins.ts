@@ -11,6 +11,10 @@ const AdminSchema: Schema = new Schema(
       unique: true,
       trim: true
     },
+    current_balance: {
+      type: Number,
+      default: 0
+    },
     chat_id: {
       type: String,
       unique: true

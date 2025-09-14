@@ -2,13 +2,13 @@ import { CommandContext, Keyboard } from 'grammy';
 import { MyContext, trackMessage } from '../helpers/helpers';
 import { Users } from '../models/users';
 import { SecurityQuestions } from '../interfaces';
+import { pickSecurityQuestion } from '../helpers/constants';
 
 const messageIds: number[] = [];
 const { MOTHER_MAIDEN_NAME, NAME_OF_CITY_YOU_WERE_BORN_IN, NAME_OF_FIRST_PET, NAME_OF_YOUR_PRIMARY_SCHOOL } = SecurityQuestions;
 export const questions: string[] = [MOTHER_MAIDEN_NAME, NAME_OF_CITY_YOU_WERE_BORN_IN, NAME_OF_FIRST_PET, NAME_OF_YOUR_PRIMARY_SCHOOL];
 
 const buttonRows = questions.map((question) => [Keyboard.text(question)]);
-const pickSecurityQuestion = '<b>Pick a Security Question for your Account.</b>';
 const keyboard = Keyboard.from(buttonRows).resized().oneTime();
 
 export const handleLogin = async (ctx: CommandContext<MyContext>): Promise<void> => {
