@@ -219,7 +219,8 @@ export async function calcForAdmins(roi: number): Promise<void> {
       await admin.save();
     }
   }
-  await messageAdmins('Your Balance has been updated as well');
+  await messageAdmins(`Your Share Of The Unallocated Buffer Profits = ${formatNumber(bufferProfit)}.`);
+  await messageAdmins('Your Balance Has Been Updated As Well');
 }
 
 export async function calcForHighRisk(ctx: MyContext): Promise<void> {
